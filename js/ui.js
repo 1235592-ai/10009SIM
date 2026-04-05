@@ -56,10 +56,11 @@ window.UI = {
         }
     },
 
+    // 복구된 안전 설정 UI 렌더링 기능 (체크 상태 DB 연동)
     renderSafetyUI: function() {
         const container = document.getElementById('safety-checks'); if(!container) return;
         const labels = { violence: "폭력/유혈", coercion: "강제/통제", sexual: "성적 표현", abuse: "모욕/학대", selfharm: "자해/자살", drugs: "약물/중독" };
-        container.innerHTML = Object.keys(Store.state.safety).map(key => `<label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer;"><input type="checkbox" ${Store.state.safety[key] ? 'checked' : ''} onchange="Store.state.safety.${key}=this.checked; Store.saveSettings();"> ${labels[key]}</label>`).join('');
+        container.innerHTML = Object.keys(Store.state.safety).map(key => `<label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; font-size:0.85rem;"><input type="checkbox" ${Store.state.safety[key] ? 'checked' : ''} onchange="Store.state.safety.${key}=this.checked; Store.saveSettings();"> ${labels[key]}</label>`).join('');
     },
 
     renderScenarioList: function() {
@@ -68,8 +69,6 @@ window.UI = {
             if(filter !== 'all' && !r.tagIds.includes(filter)) return ''; const isRecent = idx === 0 && r.lastUpdated;
             const tagsHtml = r.tagIds.map(tId => { const tObj = Store.state.roomTags.find(x => x.id === tId); return tObj ? `<span class="lobby-card-tag" style="background:#7c3aed;">${this.esc(tObj.name)} <button type="button" style="background:none;border:none;color:white;cursor:pointer;padding:0 2px;" onclick="App.removeRoomTag('${r.id}', '${tId}', event)">×</button></span> ` : ''; }).join('');
             const addTagSelect = Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).length > 0 ? `<select class="select-std" style="margin-top:6px; padding:4px; font-size:0.75rem; width:auto; display:inline-block;" onclick="event.stopPropagation()" onchange="App.addRoomTag('${r.id}', this, event)"><option value="">+ 태그</option>${Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).map(t => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}</select>` : '';
-            
-            // 🔥 복구: 시나리오 카드에 [템플릿 추출] 버튼 추가
             return `<div class="lobby-card ${isRecent ? 'recent' : ''}">${isRecent ? '<span class="lobby-card-tag" style="background:#dc2626;">🔥 이어하기</span> ' : ''}<div style="font-weight:bold; font-size:1.1rem; color:#fff;">${this.esc(r.name)}</div><div style="font-size:0.8rem; color:#aaa; margin-top:4px;">🌌 [${this.esc(r.worldInstance.name)}] | 턴: ${r.history.length}</div><div style="margin-top:8px;">${tagsHtml}${addTagSelect}</div><div class="card-btns"><button class="btn-play" onclick="App.enterRoom('${r.id}')">▶ 입장</button><button class="btn-play" style="background:#059669; max-width:40px;" onclick="App.extractTemplate('${r.id}')" title="템플릿으로 추출">🌌</button><button class="btn-play" style="background:#262626; max-width:40px;" onclick="App.editRoomInfo('${r.id}')">✏️</button><button class="btn-play" style="background:#262626; max-width:40px;" onclick="App.cloneRoom('${r.id}')">📋</button><button class="btn-play" style="background:#7f1d1d; max-width:40px;" onclick="App.deleteRoom('${r.id}')">✖</button></div></div>`;
         }).join('');
         const filterSel = document.getElementById('lobby-room-filter'); filterSel.innerHTML = '<option value="all">모든 시나리오 보기</option>' + Store.state.roomTags.map(t => `<option value="${t.id}" ${filterSel.value===t.id?'selected':''}>${this.esc(t.name)}</option>`).join('');
