@@ -1,10 +1,39 @@
-const CACHE_NAME = 'world-sim-v1';
-const urlsToCache = [ './', './index.html', './manifest.json', './icon.png' ];
+const CACHE_NAME = '10009SIM-cache';
+const urlsToCache = [
+  './',
+  './index.html',
+  './css/style.css',
+  './js/store.js',
+  './js/api.js',
+  './js/dice.js',
+  './js/ui.js',
+  './js/app.js',
+  './manifest.json',
+  './icon.png'
+];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(urlsToCache);
+    })
+  );
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+      );
+    })
+  );
 });
