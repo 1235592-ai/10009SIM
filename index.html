@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10009 시뮬레이터 2.0</title>
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="overlay" onclick="UI.closeOverlay()"></div>
+    <div id="toast-noti" class="sys-noti"></div>
+
+    <div id="lobby-container">
+        <div class="lobby-header">
+            <h1>10009 시뮬레이터 2.0</h1>
+            <div class="lobby-tabs">
+                <div class="lobby-tab active" onclick="UI.switchTab('tab-scenarios', event)">🎬 시나리오</div>
+                <div class="lobby-tab" onclick="UI.switchTab('tab-worlds', event)">🌌 템플릿</div>
+                <div class="lobby-tab" onclick="UI.switchTab('tab-settings', event)">⚙️ 설정</div>
+            </div>
+        </div>
+
+        <div id="tab-scenarios" class="lobby-content active">
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <button class="btn-play" onclick="UI.openNewRoomModal()">+ 새 시나리오 시작</button>
+                <button class="btn-play" style="background:#262626; max-width:60px;" onclick="UI.openTagModal()">🏷️</button>
+            </div>
+            <select id="lobby-room-filter" class="input-std" onchange="UI.renderScenarioList()"></select>
+            <div id="scenario-list"></div>
+        </div>
+
+        <div id="tab-worlds" class="lobby-content">
+            <button class="btn-play" style="background:#059669; margin-bottom:20px;" onclick="Store.createNewWorldTemplate()">+ 🌌 새 템플릿 창조</button>
+            <div id="world-template-list"></div>
+        </div>
+
+        <div id="tab-settings" class="lobby-content">
+            <h3>🔑 API 설정</h3>
+            <input type="password" id="set-api-key" class="input-std" placeholder="Gemini API Key" onchange="Store.saveSettings()">
+            <input type="text" id="set-model-name" class="input-std" list="model-list" placeholder="모델명" onchange="Store.saveSettings()">
+            <datalist id="model-list">
+                <option value="gemini-3.1-flash-lite-preview"></option>
+                <option value="gemini-3.1-flash"></option>
+                <option value="gemini-3.1-pro"></option>
+            </datalist>
+            <h3>🛡️ 안전 설정</h3>
+            <div id="safety-checks"></div>
+            <hr style="border-color:#333; margin:20px 0;">
+            <button class="btn-play" style="background:#444;" onclick="Store.exportData()">⬇️ 전체 백업</button>
+            <button class="btn-play" style="background:#444; margin-top:10px;" onclick="document.getElementById('import-file').click()">⬆️ 데이터 복원</button>
+            <input type="file" id="import-file" style="display:none;" onchange="Store.importData(event)">
+        </div>
+    </div>
+
+    <div id="game-container">
+        <header>
+            <button class="btn-to-lobby" onclick="App.exitToLobby()">🏠 로비</button>
+            <div class="header-names">
+                <span id="header-npc-names" onclick="UI.togglePanel('char-panel')">NPC들</span>
+                <span style="font-size:0.7rem; color:#666;">vs</span>
+                <span id="header-user-name" onclick="UI.togglePanel('char-panel')">USER</span>
+            </div>
+            <div class="header-btns">
+                <button onclick="Store.exportChatToTxt()">💾</button>
+                <button onclick="UI.togglePanel('world-panel')">🗺️</button>
+                <button onclick="UI.togglePanel('char-panel')" style="color:#fbbf24;">👤</button>
+                <button onclick="UI.togglePanel('sys-panel')">🖥️</button>
+            </div>
+        </header>
+        <div class="sub-header" onclick="UI.togglePanel('world-panel')">
+            <span id="header-loc-name">🧭 위치 미정</span>
+        </div>
+
+        <div id="chat-container"></div>
+        
+        <div id="dice-tools">
+            <label style="color:#38bdf8; font-weight:bold; white-space:nowrap;"><input type="checkbox" id="long-response">📝 긴 대답</label>
+            <span style="border-left:1px solid #444; height:15px; margin:0 6px;"></span>
+            <label style="color:#fbbf24; font-weight:bold; white-space:nowrap;"><input type="checkbox" id="dice-enable">🎲 판정</label>
+            <select id="dice-type" class="select-std" style="margin:0 4px; padding:2px 4px; width:auto;" onchange="Dice.updateMode()">
+                <option value="single">단일</option><option value="opposed">대항</option>
+            </select>
+            <select id="dice-my-stat" class="select-std" style="margin:0; padding:2px 4px; width:auto;"></select>
+            <span id="dice-vs-txt" style="color:#666; display:none; margin:0 4px;">vs</span>
+            <select id="dice-npc-stat" class="select-std" style="margin:0; padding:2px 4px; width:auto; display:none;"></select>
+        </div>
+
+        <div id="input-area">
+            <textarea id="msg-input" placeholder="대화를 입력하세요." oninput="UI.autoResize(this)" onkeydown="App.handleInputKey(event)"></textarea>
+            <button id="action-btn" onclick="App.handleAction()">▶ 전송</button>
+        </div>
+    </div>
+
+    <div id="world-panel" class="panel">
+        <div class="panel-header">
+            <div class="panel-title-row"><h2 id="world-panel-title">🗺️ 세계관 설정</h2><button class="close-btn-new" onclick="history.back()">✕</button></div>
+            <button class="btn-main" style="background:#16a34a; margin-top:12px; margin-bottom:0;" onclick="Store.saveWorld()">💾 변경사항 저장</button>
+        </div>
+        <button id="btn-free-roam" class="btn-ghost" style="margin-bottom:15px;" onclick="Store.setLoc(-1)">📍 문맥에 맡기기 (현재 미분류)</button>
+        <details class="acc-sec" open>
+            <summary style="color:#38bdf8;">🌌 기본 설정</summary>
+            <div style="margin-top:10px;">
+                <input type="text" class="input-std" id="w-n" placeholder="세계관 이름">
+                <textarea class="area-std auto-resize" id="w-d" placeholder="프롬프트/배경" oninput="UI.autoResize(this);"></textarea>
+                <input type="text" class="input-std" id="w-url" placeholder="배경 이미지 URL">
+            </div>
+        </details>
+        <details class="acc-sec">
+            <summary style="color:#60a5fa;">🚩 세력 (집단)</summary>
+            <div id="world-factions-list" style="margin-top:10px;"></div>
+            <button class="btn-ghost" onclick="Store.addFaction()">+ 세력 추가</button>
+        </details>
+        <details class="acc-sec">
+            <summary style="color:#a3e635;">📚 지식 및 설정 (분류)</summary>
+            <div id="world-lore-folders-list" style="margin-top:10px;"></div>
+            <button class="btn-ghost" onclick="Store.addLoreFolder()">+ 📁 새 분류(폴더) 추가</button>
+        </details>
+        <details class="acc-sec">
+            <summary style="color:#10b981;">🗺️ 지역 및 상세 장소</summary>
+            <div id="world-regions-list" style="margin-top:10px;"></div>
+            <button class="btn-ghost" onclick="Store.addRegion()">+ 🏔️ 새 지역(대분류) 추가</button>
+        </details>
+    </div>
+
+    <div id="char-panel" class="panel">
+        <div class="panel-header">
+            <div class="panel-title-row"><h2>👤 인물 관리</h2><button class="close-btn-new" onclick="history.back()">✕</button></div>
+            <button class="btn-main" style="background:#16a34a; margin-top:12px;" onclick="Store.saveCharacters()">💾 인물 일괄 저장</button>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button class="btn-ghost" style="flex:1;" onclick="Store.addCharacter()">+ 새 인물</button>
+            <button class="btn-ghost" style="flex:1; border-color:#38bdf8; color:#38bdf8;" onclick="UI.openImportModal()">📥 불러오기</button>
+        </div>
+        <select id="char-filter-sel" class="select-std" style="background:#111;" onchange="Store.syncCharDOM(); UI.renderCharacters()"></select>
+        <h3 id="h3-my-char" style="color:#0ea5e9; border-bottom:1px solid #333; padding-bottom:5px;">🙋‍♂️ 내 캐릭터</h3><div id="char-my-area"></div>
+        <h3 id="h3-active-npc" style="color:#10b981; border-bottom:1px solid #333; padding-bottom:5px;">🗣️ 참여 중인 주연</h3><div id="char-active-area"></div>
+        <h3 id="h3-other-char" style="color:#888; border-bottom:1px solid #333; padding-bottom:5px;">👥 대기 중인 조연</h3><div id="char-other-area"></div>
+    </div>
+
+    <div id="sys-panel" class="panel">
+        <div class="panel-header"><div class="panel-title-row"><h2>🖥️ 시스템 보드</h2><button class="close-btn-new" onclick="history.back()">✕</button></div></div>
+        <h3 style="color:#ef4444; margin-top:10px;">⚠️ 현재 세계 상태</h3>
+        <textarea id="global-status-input" class="area-std auto-resize" placeholder="시간 멈춤 등" oninput="UI.autoResize(this); Store.updateRoomState('globalStatus', this.value);"></textarea>
+        <h3 style="color:#a78bfa; margin-top:20px;">📝 상황 요약</h3>
+        <textarea id="room-memory-input" class="area-std auto-resize" style="min-height:150px;" oninput="UI.autoResize(this); Store.updateRoomState('memory', this.value);"></textarea>
+        <button class="btn-main" style="margin-top:8px;" onclick="Store.saveRoomMemory()">기억 수동 저장</button>
+        <hr style="border-color:#333; margin:25px 0;">
+        <h3 style="color:#dc2626;">🔴 네트워크 피드</h3>
+        <div style="display:flex; gap:10px; margin-bottom:10px;"><button class="btn-main" style="background:#dc2626; flex:2;" onclick="API.generateNetwork()">🔄 스캔</button><button class="btn-ghost" style="flex:1;" onclick="UI.editNetwork()">✏️ 수정</button></div>
+        <div id="network-content"></div>
+        <textarea id="network-edit-area" class="area-std auto-resize" style="display:none; min-height:200px;" oninput="UI.autoResize(this); Store.updateRoomState('networkArchive', this.value);"></textarea>
+        <button id="network-save-btn" class="btn-main" style="display:none;" onclick="Store.saveNetwork()">저장</button>
+    </div>
+
+    <div id="new-room-modal" class="modal-base"><div class="modal-header"><h3>🎭 새 시나리오</h3><button class="close-btn-new" onclick="UI.closeModal('new-room-modal')">✕</button></div><select id="new-room-world-sel" class="select-std"></select><input type="text" id="new-room-name" class="input-std" placeholder="제목"><button class="btn-play" onclick="App.createNewRoom()">생성</button></div>
+    <div id="edit-room-modal" class="modal-base"><div class="modal-header"><h3>✏️ 수정</h3><button class="close-btn-new" onclick="UI.closeModal('edit-room-modal')">✕</button></div><input type="hidden" id="edit-room-id"><input type="text" id="edit-room-name" class="input-std"><button class="btn-main" style="margin-top:10px;" onclick="App.saveRoomInfo()">저장</button></div>
+    <div id="import-modal" class="modal-base"><div class="modal-header"><h3>📥 인물 불러오기</h3><button class="close-btn-new" onclick="UI.closeModal('import-modal')">✕</button></div><select id="import-world-sel" class="select-std" onchange="UI.renderImportChars()"></select><div id="import-char-list" style="margin-top:10px; max-height:200px; overflow-y:auto;"></div></div>
+    <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3>🏷️ 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')">✕</button></div><div id="tag-manage-list" style="max-height:250px; overflow-y:auto; margin-bottom:10px;"></div></div>
+
+    <script src="js/store.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/dice.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
