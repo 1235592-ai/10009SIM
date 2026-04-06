@@ -2,12 +2,11 @@ window.UI = {
     activeModal: null,
 
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
-        autoResize: function(el) { 
+    autoResize: function(el) { 
         if (!el) return; 
         el.style.height = '1px'; 
         
-        let maxH = parseInt(window.getComputedStyle(el).maxHeight);
-        if (isNaN(maxH)) maxH = 300; 
+        const maxH = 300; 
         
         if (el.scrollHeight >= maxH) {
             el.style.height = maxH + 'px';
