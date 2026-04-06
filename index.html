@@ -153,14 +153,36 @@
 
     <div id="sys-panel" class="panel">
         <div class="panel-header"><div class="panel-title-row"><h2>🖥️ 시스템 보드</h2><button class="close-btn-new" onclick="history.back()">✕</button></div></div>
+        
         <h3 style="color:#ef4444; margin-top:10px;">⚠️ 현재 세계 상태</h3>
         <textarea id="global-status-input" class="area-std auto-resize" placeholder="서사의 절대 규칙이나 현재 디버프 상태 등을 적어두세요." oninput="UI.autoResize(this); Store.updateRoomState('globalStatus', this.value);"></textarea>
+        
         <h3 style="color:#a78bfa; margin-top:20px;">📝 상황 요약</h3>
         <textarea id="room-memory-input" class="area-std auto-resize" style="min-height:150px;" oninput="UI.autoResize(this); Store.updateRoomState('memory', this.value);"></textarea>
         <button class="btn-main" style="margin-top:8px;" onclick="Store.saveRoomMemory()">기억 수동 저장</button>
+        
         <hr style="border-color:#333; margin:25px 0;">
-        <h3 style="color:#dc2626;">🔴 네트워크 피드</h3>
-        <div style="display:flex; gap:10px; margin-bottom:10px;"><button class="btn-main" style="background:#dc2626; flex:2;" onclick="API.generateNetwork()">🔄 스캔</button><button class="btn-ghost" style="flex:1;" onclick="UI.editNetwork()">✏️ 수정</button></div>
+        
+        <h3 style="color:#dc2626;">📡 정보망 프리셋</h3>
+        <select id="network-preset-sel" class="select-std" onchange="UI.toggleCustomNet(this.value)">
+            <option value="modern">🌐 현대 / 현대 판타지</option>
+            <option value="medieval">👑 중세 / 로맨스 판타지</option>
+            <option value="apocalypse">📻 아포칼립스 / 생존</option>
+            <option value="wuxia">⚔️ 시대극 / 무협</option>
+            <option value="adventure">🗺️ 던전 / 모험 판타지</option>
+            <option value="custom">⚙️ 자유 지정 (직접 입력)</option>
+        </select>
+
+        <div id="custom-net-input" style="display:none; margin-top:10px; padding:10px; background:#1a1a1a; border-radius:8px;">
+            <input type="text" id="custom-net-name" class="input-std" style="margin-bottom:8px;" placeholder="세계관/장르명 (예: 사이버펑크)">
+            <input type="text" id="custom-net-tags" class="input-std" placeholder="태그 4개 (예: [공지],[현장],[수다],[기밀])">
+            <div style="font-size:0.8rem; color:#888; margin-top:5px;">* 쉼표(,)로 구분하여 반드시 4개의 태그를 입력하세요.</div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:15px; margin-bottom:10px;">
+            <button class="btn-main" style="background:#dc2626; flex:2;" onclick="API.generateNetwork()">🔄 세계 반응 스캔</button>
+            <button class="btn-ghost" style="flex:1;" onclick="UI.editNetwork()">✏️ 수정</button>
+        </div>
         <div id="network-content"></div>
         <textarea id="network-edit-area" class="area-std auto-resize" style="display:none; min-height:200px;" oninput="UI.autoResize(this); Store.updateRoomState('networkArchive', this.value);"></textarea>
         <button id="network-save-btn" class="btn-main" style="display:none;" onclick="Store.saveNetwork()">저장</button>
