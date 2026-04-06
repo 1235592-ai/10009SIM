@@ -1,169 +1,160 @@
 window.Store = {
-    VERSION: 71,
+    VERSION: 100, // 클린 무제한 DB 버전
     state: {
         apiKey: '', modelName: 'gemini-3.1-flash-lite-preview',
         safety: { violence: false, coercion: false, sexual: false, abuse: false, selfharm: false, drugs: false },
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
     saveTimeout: null,
+    db: null,
 
-    init: function() {
-        let loadedMaster = null; 
-        let loadedVersion = this.VERSION;
+    // 📦 무제한 창고(IndexedDB) 제어 엔진
+    openDB: function() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('10009SIM_DB', 1);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if(!db.objectStoreNames.contains('master')) db.createObjectStore('master', {keyPath: 'id'});
+                if(!db.objectStoreNames.contains('worlds')) db.createObjectStore('worlds', {keyPath: 'id'});
+                if(!db.objectStoreNames.contains('rooms')) db.createObjectStore('rooms', {keyPath: 'id'});
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    },
+    dbGet: function(storeName, id) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readonly').objectStore(storeName).get(id); req.onsuccess = () => resolve(req.result); req.onerror = () => resolve(null); }); },
+    dbGetAll: function(storeName) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readonly').objectStore(storeName).getAll(); req.onsuccess = () => resolve(req.result); req.onerror = () => resolve([]); }); },
+    dbPut: function(storeName, item) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readwrite').objectStore(storeName).put(item); req.onsuccess = () => resolve(); req.onerror = () => resolve(); }); },
+    dbDelete: function(storeName, id) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readwrite').objectStore(storeName).delete(id); req.onsuccess = () => resolve(); req.onerror = () => resolve(); }); },
+
+    init: async function() {
+        try { this.db = await this.openDB(); } catch(e) { alert("저장소 초기화 실패. 브라우저 설정(시크릿 모드 등)을 확인하세요."); return; }
         
-        for (let v = this.VERSION; v >= 59; v--) {
-            const mData = localStorage.getItem('rpMaster_v' + v);
-            if (mData) { loadedMaster = JSON.parse(mData); loadedVersion = v; break; }
-        }
-
-        if (loadedMaster) {
-            this.state.apiKey = loadedMaster.apiKey || ''; 
-            this.state.modelName = loadedMaster.modelName || 'gemini-3.1-flash-lite-preview';
-            this.state.safety = loadedMaster.safety || this.state.safety; 
-            this.state.roomTags = loadedMaster.roomTags || [];
-            
-            if(loadedMaster.worlds) {
-                loadedMaster.worlds.forEach(meta => { 
-                    const d = localStorage.getItem(`rpWorld_v${loadedVersion}_${meta.id}`); 
-                    if(d) this.state.worlds.push(JSON.parse(d)); 
-                });
-            }
-            if(loadedMaster.rooms) {
-                loadedMaster.rooms.forEach(meta => { 
-                    const d = localStorage.getItem(`rpRoom_v${loadedVersion}_${meta.id}`); 
-                    if(d) { let r = JSON.parse(d); r.tagIds = r.tagIds || []; this.state.rooms.push(r); }
-                });
-            }
-            
-            if (loadedVersion !== this.VERSION) {
-                Object.keys(localStorage).forEach(k => { 
-                    if(k.startsWith('rpMaster_v') || k.startsWith('rpWorld_v') || k.startsWith('rpRoom_v')) {
-                        localStorage.removeItem(k); 
-                    }
-                });
-                this.forceSave();
-            }
+        // 🧠 DB 데이터를 초고속 메모리(state)로 불러오기
+        const master = await this.dbGet('master', 'main');
+        if (master) {
+            this.state.apiKey = master.apiKey || ''; 
+            this.state.modelName = master.modelName || 'gemini-3.1-flash-lite-preview';
+            this.state.safety = master.safety || this.state.safety; 
+            this.state.roomTags = master.roomTags || [];
+            this.state.worlds = await this.dbGetAll('worlds');
+            this.state.rooms = await this.dbGetAll('rooms');
+            this.state.rooms.forEach(r => { if(!r.tagIds) r.tagIds = []; });
         } else {
-            const wId = 'w_'+Date.now();
-            this.state.worlds.push({ 
-                id: wId, name: '예시: 좀비 아포칼립스', prompt: '서울에 좀비 바이러스가 퍼졌다.', bgUrl: '', 
-                factions: [], loreFolders: [], lores: [], regions: [], locations: [], 
-                characters: [ {id:'sys', keyword:'시뮬레이터', desc:'마스터', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:false} ] 
-            });
+            // 아무것도 없는 완전 초기 상태 (기본 세계관 생성)
+            const defaultSys = {id:'sys', keyword:'시스템', desc:'전지적 시스템', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:true};
+            const defaultWorld = { id: 'w_'+Date.now(), name: '기본 세계관', prompt: '현대 배경.', bgUrl: '', regions: [], locations: [], factions: [], loreFolders: [], lores: [], characters: [defaultSys] };
+            this.state.worlds.push(defaultWorld);
+            this.forceSave(); 
         }
     },
 
-    getTargetWorld: function() { return this.state.activeRoomId ? this.state.rooms.find(x => x.id === this.state.activeRoomId)?.worldInstance : this.state.worlds.find(x => x.id === this.state.activeWorldId); },
-    getActiveRoom: function() { return this.state.rooms.find(r => r.id === this.state.activeRoomId); },
-    getChar: function(id) { const w = this.getTargetWorld(); return w ? w.characters.find(c=>c.id===id) : null; },
-
-    debouncedSave: function() {
-        clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(() => this.forceSave(), 500);
-    },
-
+    // 💾 타이핑 렉 방지 최적화: '현재 방'만 선별해서 저장
     forceSave: function() {
-        try {
-            const master = { apiKey: this.state.apiKey, modelName: this.state.modelName, safety: this.state.safety, roomTags: this.state.roomTags, worlds: this.state.worlds.map(w => ({id: w.id, name: w.name})), rooms: this.state.rooms.map(r => ({id: r.id, name: r.name, lastUpdated: r.lastUpdated})) };
-            localStorage.setItem(`rpMaster_v${this.VERSION}`, JSON.stringify(master));
-            this.state.worlds.forEach(w => localStorage.setItem(`rpWorld_v${this.VERSION}_${w.id}`, JSON.stringify(w)));
-            this.state.rooms.forEach(r => localStorage.setItem(`rpRoom_v${this.VERSION}_${r.id}`, JSON.stringify(r)));
-        } catch (e) {
-            alert("🚨 브라우저 저장 공간이 가득 찼습니다!\n설정 탭에서 [데이터 백업] 후 쓰지 않는 시나리오를 삭제하세요.");
-        }
-    },
-
-    saveSettings: function() { 
-        this.state.apiKey = document.getElementById('set-api-key').value; 
-        this.state.modelName = document.getElementById('set-model-name').value || 'gemini-3.1-flash-lite-preview'; 
-        this.forceSave(); 
-    },
-    
-    updateRoomState: function(key, val) { const r = this.getActiveRoom(); if(r) r[key] = val; },
-
-    createNewWorldTemplate: function() { this.state.worlds.push({ id: 'w_'+Date.now(), name: '새 템플릿', prompt: '', bgUrl: '', factions: [], loreFolders: [], lores: [], regions: [], locations: [], characters: [{id:'sys', keyword:'시뮬레이터', desc:'마스터', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:false}] }); this.forceSave(); UI.renderWorldTemplateList(); UI.showToast("템플릿 생성"); },
-    
-    // 🔥 복구: 템플릿 삭제 시 확인창 및 안전장치 부활
-    deleteWorldTemplate: function(id) { 
-        if(this.state.worlds.length <= 1) return alert("최소 1개 이상의 템플릿은 유지해야 합니다.");
-        if(!confirm("정말 이 템플릿을 삭제하시겠습니까?\n(이미 생성된 시나리오에는 영향을 주지 않습니다.)")) return;
-        this.state.worlds = this.state.worlds.filter(w => w.id !== id); 
-        localStorage.removeItem(`rpWorld_v${this.VERSION}_${id}`); 
-        this.forceSave(); 
-        UI.renderWorldTemplateList(); 
+        if(this.saveTimeout) clearTimeout(this.saveTimeout);
+        this.saveTimeout = setTimeout(() => {
+            if(!this.db) return;
+            const master = { id: 'main', apiKey: this.state.apiKey, modelName: this.state.modelName, safety: this.state.safety, roomTags: this.state.roomTags };
+            try {
+                const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
+                tx.objectStore('master').put(master);
+                // 템플릿(세계관)은 용량이 작으므로 항상 일괄 덮어쓰기
+                this.state.worlds.forEach(w => tx.objectStore('worlds').put(w));
+                
+                if (this.state.activeRoomId) {
+                    // 시나리오 진행 중: 막대한 렉 방지를 위해 '현재 방' 1개만 골라서 덮어쓰기
+                    const r = this.getActiveRoom();
+                    if(r) tx.objectStore('rooms').put(r);
+                } else {
+                    // 로비에 있을 때: 태그 수정/방 복제 등을 반영하기 위해 일괄 덮어쓰기
+                    this.state.rooms.forEach(r => tx.objectStore('rooms').put(r));
+                }
+            } catch(e) { console.error("DB Save Error", e); }
+        }, 300);
     },
     
-    addFaction: function() { this.syncWorldDOM(); this.getTargetWorld().factions.push({id:'f_'+Date.now(), name:'', desc:'', secret:''}); UI.renderWorld(); },
-    addLoreFolder: function() { this.syncWorldDOM(); this.getTargetWorld().loreFolders.push({id:'lf_'+Date.now(), name:'', desc:''}); UI.renderWorld(); },
-    addLore: function(folderId='') { this.syncWorldDOM(); this.getTargetWorld().lores.push({id:'l_'+Date.now(), folderId, keyword:'', triggerLocId:'', desc:''}); UI.renderWorld(); },
-    addRegion: function() { this.syncWorldDOM(); this.getTargetWorld().regions.push({id:'reg_'+Date.now(), name:'', desc:''}); UI.renderWorld(); },
-    addLocation: function(regionId='') { this.syncWorldDOM(); this.getTargetWorld().locations.push({id:'loc_'+Date.now(), regionId, name:'', desc:''}); UI.renderWorld(); },
+    saveSettings: function() { this.state.apiKey = document.getElementById('set-api-key').value; this.state.modelName = document.getElementById('set-model-name').value || 'gemini-3.1-flash-lite-preview'; this.forceSave(); UI.showToast("설정이 저장되었습니다."); },
     
-    delWorldItem: function(type, id, event) {
-        if(event) event.stopPropagation();
-        this.syncWorldDOM();
-        if(!confirm("삭제하시겠습니까? (하위/연결된 태그도 지워집니다)")) return;
-        const w = this.getTargetWorld();
-        if(type==='f') { w.factions = w.factions.filter(x=>x.id!==id); w.characters.forEach(c => { if(c.factionIds) c.factionIds = c.factionIds.filter(fid=>fid!==id); }); }
-        else if(type==='lf') { w.loreFolders = w.loreFolders.filter(x=>x.id!==id); w.lores.forEach(l => { if(l.folderId === id) l.folderId = ''; }); }
-        else if(type==='l') w.lores = w.lores.filter(x=>x.id!==id);
-        else if(type==='reg') { w.regions = w.regions.filter(x=>x.id!==id); w.locations.forEach(l => { if(l.regionId === id) l.regionId = ''; }); }
-        else if(type==='loc') { const idx = w.locations.findIndex(x=>x.id===id); w.locations = w.locations.filter(x=>x.id!==id); const r = this.getActiveRoom(); if(r && r.currentLocIdx === idx) r.currentLocIdx = -1; else if(r && r.currentLocIdx > idx) r.currentLocIdx--; w.characters.forEach(c => { if(c.triggerLocId === id) c.triggerLocId = ''; }); w.lores.forEach(l => { if(l.triggerLocId === id) l.triggerLocId = ''; }); }
-        UI.renderWorld();
-    },
+    getActiveRoom: function() { return this.state.rooms.find(r => r.id === this.state.activeRoomId); },
+    getTargetWorld: function() { if(this.state.activeRoomId) return this.getActiveRoom().worldInstance; return this.state.worlds.find(w => w.id === this.state.activeWorldId); },
+    updateRoomState: function(key, val) { const r = this.getActiveRoom(); if(r) { r[key] = val; this.forceSave(); } },
+    setLoc: function(idx) { const r = this.getActiveRoom(); if(!r) return; r.currentLocIdx = idx; this.forceSave(); App.loadActiveRoom(); UI.closeOverlay(); },
+    saveRoomMemory: function() { const r = this.getActiveRoom(); if(!r) return; r.memory = document.getElementById('room-memory-input').value; r.globalStatus = document.getElementById('global-status-input').value; this.forceSave(); UI.showToast("상황/세계 상태가 저장되었습니다."); },
+    saveNetwork: function() { const r = this.getActiveRoom(); if(!r) return; r.networkArchive = document.getElementById('network-edit-area').value; this.forceSave(); UI.editNetwork(false); UI.renderNetworkArchive(); },
 
-    setLoc: function(i) { this.syncWorldDOM(); const r = this.getActiveRoom(); if(r) { r.currentLocIdx = i; this.forceSave(); App.loadActiveRoom(); UI.renderWorld(); } },
-    addCharacter: function() { this.syncCharDOM(); const w = this.getTargetWorld(); w.characters.push({id:'c_'+Date.now(), keyword:'새 인물', factionIds:[], triggerLocId:'', desc:'', secret:'', stats:[], reputation:[], isHidden:false}); UI.renderCharacters(); },
-    delChar: function(id) { this.syncCharDOM(); if(!confirm("삭제하시겠습니까?")) return; const w = this.getTargetWorld(); const r = this.getActiveRoom(); if(r && r.myCharId===id) return alert("내 캐릭터 삭제 불가."); w.characters = w.characters.filter(x=>x.id!==id); if(r) { r.activeCharIds = r.activeCharIds.filter(x=>x!==id); if(r.activeCharIds.length===0) r.activeCharIds=['sys']; App.loadActiveRoom(); } UI.renderCharacters(); },
-    toggleHidden: function(id) { this.syncCharDOM(); const c = this.getChar(id); if(c) { c.isHidden = !c.isHidden; if(c.isHidden && this.state.activeRoomId) { const r = this.getActiveRoom(); r.activeCharIds = r.activeCharIds.filter(x=>x!==id); if(r.activeCharIds.length===0) r.activeCharIds=['sys']; } UI.renderCharacters(); if(this.state.activeRoomId) App.loadActiveRoom(); } },
-    setMyChar: function(id) { this.syncCharDOM(); const r = this.getActiveRoom(); r.myCharId = id; r.activeCharIds = r.activeCharIds.filter(x=>x!==id); if(r.activeCharIds.length===0) r.activeCharIds=['sys']; UI.renderCharacters(); App.loadActiveRoom(); },
-    toggleActiveNpc: function(id) { this.syncCharDOM(); const r = this.getActiveRoom(); if(r.activeCharIds.includes(id)) r.activeCharIds = r.activeCharIds.filter(x=>x!==id); else r.activeCharIds.push(id); if(r.activeCharIds.length===0) r.activeCharIds=['sys']; UI.renderCharacters(); App.loadActiveRoom(); },
-
-    addStat: function(id) { this.syncCharDOM(); const c = this.getChar(id); if(c) { c.stats.push({n:'', v:50, active:true}); UI.renderCharacters(); if(this.state.activeRoomId) Dice.refreshDiceUI(); } },
-    delStat: function(id, sIdx) { this.syncCharDOM(); const c = this.getChar(id); if(c) { c.stats.splice(sIdx, 1); UI.renderCharacters(); if(this.state.activeRoomId) Dice.refreshDiceUI(); } },
-    upStat: function(id, sIdx, f, val) { this.syncCharDOM(); const c = this.getChar(id); if(c) { c.stats[sIdx][f] = f==='v'?Number(val):val; if(this.state.activeRoomId && f==='active') Dice.refreshDiceUI(); } },
+    removeRoomDB: async function(id) { await this.dbDelete('rooms', id); },
     
-    addRep: function(id) { this.syncCharDOM(); const c = this.getChar(id); if(c) { c.reputation.push({id:'rep_'+Date.now(), leftName:'', rightName:'', value:0}); UI.renderCharacters(); } },
-    delRep: function(id, idx) { this.syncCharDOM(); const c = this.getChar(id); if(c) { c.reputation.splice(idx, 1); UI.renderCharacters(); } },
-    upRep: function(id, idx, f, val) { this.syncCharDOM(); const c = this.getChar(id); if(c) { c.reputation[idx][f] = f==='value'?Number(val):val; } },
+    createNewWorldTemplate: function() { const newW = { id: 'w_'+Date.now(), name: '새 세계관', prompt: '', bgUrl: '', regions: [], locations: [], factions: [], loreFolders: [], lores: [], characters: [{id:'sys', keyword:'시스템', desc:'', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:true}] }; this.state.worlds.unshift(newW); this.forceSave(); UI.renderWorldTemplateList(); UI.showToast("새 템플릿 생성됨"); App.editWorldTemplate(newW.id); },
+    deleteWorldTemplate: function(id) { if(!confirm("이 템플릿을 영구 삭제하시겠습니까? (시나리오 데이터는 유지됨)")) return; this.state.worlds = this.state.worlds.filter(w => w.id !== id); this.dbDelete('worlds', id); this.forceSave(); UI.renderWorldTemplateList(); },
     
-    addFacTag: function(cId, selEl) { this.syncCharDOM(); const fId = selEl.value; if(!fId) return; selEl.value = ''; const c = this.getChar(cId); if(c && !c.factionIds.includes(fId)) { c.factionIds.push(fId); UI.renderCharacters(); } },
-    removeFacTag: function(cId, fId) { this.syncCharDOM(); const c = this.getChar(cId); if(c) { c.factionIds = c.factionIds.filter(id => id !== fId); UI.renderCharacters(); } },
-
     syncWorldDOM: function() {
         const w = this.getTargetWorld(); if(!w) return;
-        const wN = document.getElementById('w-n'); if(wN) w.name = wN.value;
-        const wD = document.getElementById('w-d'); if(wD) w.prompt = wD.value;
-        const wUrl = document.getElementById('w-url'); if(wUrl) w.bgUrl = wUrl.value;
-        w.factions.forEach(f => { const elN = document.getElementById(`f-n-${f.id}`); if(elN) f.name = elN.value; const elD = document.getElementById(`f-d-${f.id}`); if(elD) f.desc = elD.value; const elS = document.getElementById(`f-s-${f.id}`); if(elS) f.secret = elS.value; });
-        w.loreFolders.forEach(lf => { const elN = document.getElementById(`lf-n-${lf.id}`); if(elN) lf.name = elN.value; const elD = document.getElementById(`lf-d-${lf.id}`); if(elD) lf.desc = elD.value; });
-        w.lores.forEach(l => { const elFld = document.getElementById(`l-fld-${l.id}`); if(elFld) l.folderId = elFld.value; const elN = document.getElementById(`l-n-${l.id}`); if(elN) l.keyword = elN.value; const elTrig = document.getElementById(`l-trig-${l.id}`); if(elTrig) l.triggerLocId = elTrig.value; const elD = document.getElementById(`l-d-${l.id}`); if(elD) l.desc = elD.value; });
-        w.regions.forEach(reg => { const elN = document.getElementById(`reg-n-${reg.id}`); if(elN) reg.name = elN.value; const elD = document.getElementById(`reg-d-${reg.id}`); if(elD) reg.desc = elD.value; });
-        w.locations.forEach(loc => { const elN = document.getElementById(`loc-n-${loc.id}`); if(elN) loc.name = elN.value; const elR = document.getElementById(`loc-r-${loc.id}`); if(elR) loc.regionId = elR.value; const elD = document.getElementById(`loc-d-${loc.id}`); if(elD) loc.desc = elD.value; });
+        w.name = document.getElementById('w-n')?.value || w.name; w.prompt = document.getElementById('w-d')?.value || w.prompt; w.bgUrl = document.getElementById('w-url')?.value || w.bgUrl;
+        w.factions.forEach(f => { f.name = document.getElementById(`f-n-${f.id}`)?.value || f.name; f.desc = document.getElementById(`f-d-${f.id}`)?.value || f.desc; f.secret = document.getElementById(`f-s-${f.id}`)?.value || f.secret; });
+        w.loreFolders.forEach(lf => { lf.name = document.getElementById(`lf-n-${lf.id}`)?.value || lf.name; lf.desc = document.getElementById(`lf-d-${lf.id}`)?.value || lf.desc; });
+        w.lores.forEach(l => { l.keyword = document.getElementById(`l-n-${l.id}`)?.value || l.keyword; l.desc = document.getElementById(`l-d-${l.id}`)?.value || l.desc; l.folderId = document.getElementById(`l-fld-${l.id}`)?.value || l.folderId; l.triggerLocId = document.getElementById(`l-trig-${l.id}`)?.value || l.triggerLocId; });
+        w.regions.forEach(reg => { reg.name = document.getElementById(`reg-n-${reg.id}`)?.value || reg.name; reg.desc = document.getElementById(`reg-d-${reg.id}`)?.value || reg.desc; });
+        w.locations.forEach(loc => { loc.name = document.getElementById(`loc-n-${loc.id}`)?.value || loc.name; loc.desc = document.getElementById(`loc-d-${loc.id}`)?.value || loc.desc; loc.regionId = document.getElementById(`loc-r-${loc.id}`)?.value || loc.regionId; });
     },
+    saveWorld: function() { this.syncWorldDOM(); this.forceSave(); UI.renderWorld(); UI.showToast("세계관이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); else UI.renderWorldTemplateList(); },
+    addFaction: function() { const w = this.getTargetWorld(); this.syncWorldDOM(); w.factions.push({ id:'f_'+Date.now(), name:'', desc:'', secret:'' }); this.forceSave(); UI.renderWorld(); },
+    addLoreFolder: function() { const w = this.getTargetWorld(); this.syncWorldDOM(); w.loreFolders.push({ id:'lf_'+Date.now(), name:'', desc:'' }); this.forceSave(); UI.renderWorld(); },
+    addLore: function(fId) { const w = this.getTargetWorld(); this.syncWorldDOM(); w.lores.push({ id:'l_'+Date.now(), folderId: fId, keyword:'', desc:'', triggerLocId:'' }); this.forceSave(); UI.renderWorld(); },
+    addRegion: function() { const w = this.getTargetWorld(); this.syncWorldDOM(); w.regions.push({ id:'reg_'+Date.now(), name:'', desc:'' }); this.forceSave(); UI.renderWorld(); },
+    addLocation: function(rId) { const w = this.getTargetWorld(); this.syncWorldDOM(); w.locations.push({ id:'loc_'+Date.now(), regionId: rId, name:'', desc:'' }); this.forceSave(); UI.renderWorld(); },
+    delWorldItem: function(type, id, e) {
+        if(e) e.stopPropagation(); if(!confirm("삭제하시겠습니까?")) return;
+        const w = this.getTargetWorld(); this.syncWorldDOM();
+        if(type==='f') w.factions = w.factions.filter(x=>x.id!==id);
+        if(type==='lf') { w.loreFolders = w.loreFolders.filter(x=>x.id!==id); w.lores.forEach(l=>{ if(l.folderId===id) l.folderId=''; }); }
+        if(type==='l') w.lores = w.lores.filter(x=>x.id!==id);
+        if(type==='reg') { w.regions = w.regions.filter(x=>x.id!==id); w.locations.forEach(loc=>{ if(loc.regionId===id) loc.regionId=''; }); }
+        if(type==='loc') w.locations = w.locations.filter(x=>x.id!==id);
+        this.forceSave(); UI.renderWorld();
+    },
+
     syncCharDOM: function() {
         const w = this.getTargetWorld(); if(!w) return;
-        w.characters.forEach(c => { const elN = document.getElementById(`c-n-${c.id}`); if(elN) c.keyword = elN.value; const elTrig = document.getElementById(`c-trig-${c.id}`); if(elTrig) c.triggerLocId = elTrig.value; const elD = document.getElementById(`c-d-${c.id}`); if(elD) c.desc = elD.value; const elS = document.getElementById(`c-s-${c.id}`); if(elS) c.secret = elS.value; });
+        w.characters.forEach(c => {
+            const nEl = document.getElementById(`c-n-${c.id}`); if(nEl) c.keyword = nEl.value;
+            const dEl = document.getElementById(`c-d-${c.id}`); if(dEl) c.desc = dEl.value;
+            const sEl = document.getElementById(`c-s-${c.id}`); if(sEl) c.secret = sEl.value;
+            if (c.id !== 'sys') { const fEl = document.getElementById(`c-f-hid-${c.id}`); if(fEl) c.factionIds = fEl.value ? fEl.value.split(',') : []; const locEl = document.getElementById(`c-trig-${c.id}`); if(locEl) c.triggerLocId = locEl.value; }
+        });
     },
-    saveWorld: function() { this.syncWorldDOM(); if(!confirm("저장하시겠습니까?")) return; const w = this.getTargetWorld(); w.factions = w.factions.map(f=>({ ...f, name:(f.name||'').trim() })).filter(x=>x.name); w.loreFolders = w.loreFolders.map(lf=>({ ...lf, name:(lf.name||'').trim() })).filter(x=>x.name); w.lores = w.lores.map(l=>({ ...l, keyword:(l.keyword||'').trim() })).filter(x=>x.keyword); w.regions = w.regions.map(reg=>({ ...reg, name:(reg.name||'').trim() })).filter(x=>x.name); w.locations = w.locations.map(loc=>({ ...loc, name:(loc.name||'').trim() })).filter(x=>x.name); this.forceSave(); UI.showToast("저장 완료"); UI.renderWorld(); if(this.state.activeRoomId) App.loadActiveRoom(); },
-    saveCharacters: function() { this.syncCharDOM(); if(!confirm("저장하시겠습니까?")) return; const w = this.getTargetWorld(); const newChars = w.characters.map(c=>{ if(c.id==='sys') return { ...c, keyword:(c.keyword||'').trim() }; return { ...c, keyword:(c.keyword||'').trim() }; }).filter(x=>x.keyword); const names = new Set(); let hasDup=false; for(let nc of newChars) { if(nc.id !== 'sys' && names.has(nc.keyword)) { alert(`중복 이름: ${nc.keyword}`); hasDup=true; break; } names.add(nc.keyword); } if(hasDup) return; w.characters = newChars; this.forceSave(); UI.showToast("저장 완료"); UI.renderCharacters(); if(this.state.activeRoomId) App.loadActiveRoom(); },
-    saveRoomMemory: function() { this.forceSave(); UI.showToast("기억 수동 저장 완료"); },
-    saveNetwork: function() { if(!confirm("저장하시겠습니까?")) return; this.forceSave(); UI.editNetwork(false); UI.renderNetworkArchive(); UI.showToast("저장 완료"); },
+    saveCharacters: function() { this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.showToast("인물 설정이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); },
+    addCharacter: function() { const w = this.getTargetWorld(); this.syncCharDOM(); w.characters.push({ id:'c_'+Date.now(), keyword:'', desc:'', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:false }); this.forceSave(); UI.renderCharacters(); },
+    delChar: function(id) { if(!confirm("인물을 삭제하시겠습니까?")) return; const w = this.getTargetWorld(); this.syncCharDOM(); w.characters = w.characters.filter(c => c.id !== id); const r = this.getActiveRoom(); if(r) { r.activeCharIds = r.activeCharIds.filter(cid => cid !== id); if(r.myCharId === id) r.myCharId = null; } this.forceSave(); UI.renderCharacters(); },
+    toggleActiveNpc: function(id) { const r = this.getActiveRoom(); if(!r) return; this.syncCharDOM(); if(r.activeCharIds.includes(id)) r.activeCharIds = r.activeCharIds.filter(x => x !== id); else r.activeCharIds.push(id); this.forceSave(); UI.renderCharacters(); App.loadActiveRoom(); },
+    setMyChar: function(id) { const r = this.getActiveRoom(); if(!r) return; this.syncCharDOM(); r.myCharId = id; r.activeCharIds = r.activeCharIds.filter(x => x !== id); this.forceSave(); UI.renderCharacters(); App.loadActiveRoom(); },
+    toggleHidden: function(id) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === id); if(c) { this.syncCharDOM(); c.isHidden = !c.isHidden; this.forceSave(); UI.renderCharacters(); } },
+    addFacTag: function(cId, selEl) { const fId = selEl.value; if(!fId) return; selEl.value = ''; const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; if(!arr.includes(fId)) { arr.push(fId); hid.value = arr.join(','); UI.renderFacTags(cId); } },
+    removeFacTag: function(cId, fId) { const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; arr = arr.filter(x => x !== fId); hid.value = arr.join(','); UI.renderFacTags(cId); },
+    addStat: function(cId) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c) { this.syncCharDOM(); if(!c.stats) c.stats = []; c.stats.push({ n:'', v:50, active:true }); this.forceSave(); UI.renderCharacters(); } },
+    delStat: function(cId, sIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("스탯을 삭제하시겠습니까?")) { this.syncCharDOM(); c.stats.splice(sIdx, 1); this.forceSave(); UI.renderCharacters(); } },
+    upStat: function(cId, sIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.stats[sIdx]) { c.stats[sIdx][key] = (key==='v' ? Number(val) : val); this.forceSave(); } },
+    addRep: function(cId) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c) { this.syncCharDOM(); if(!c.reputation) c.reputation = []; c.reputation.push({ id:'rep_'+Date.now(), leftName:'', rightName:'', value:0 }); this.forceSave(); UI.renderCharacters(); } },
+    delRep: function(cId, rIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("이 성향 축을 삭제하시겠습니까?")) { this.syncCharDOM(); c.reputation.splice(rIdx, 1); this.forceSave(); UI.renderCharacters(); } },
+    upRep: function(cId, rIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.reputation[rIdx]) { c.reputation[rIdx][key] = (key==='value' ? Number(val) : val); this.forceSave(); } },
 
-    exportData: function() { if(!confirm("전체 데이터를 백업하시겠습니까?")) return; const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.state)); a.download=`genesis_v${this.VERSION}.json`; a.click(); },
-    exportChatToTxt: function() { if(!confirm("대화 내역을 저장하시겠습니까?")) return; const r = this.getActiveRoom(); const w = r.worldInstance; let txt = `=== ${r.name} ===\n\n`; r.history.forEach(m => { let speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${r.name}.txt`; a.click(); },
+    // 📥 내보내기/불러오기
+    exportData: function() { const exp = { apiKey: this.state.apiKey, modelName: this.state.modelName, safety: this.state.safety, roomTags: this.state.roomTags, worlds: this.state.worlds, rooms: this.state.rooms }; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exp)], {type:'application/json'})); a.download = `10009SIM_Backup_${Date.now()}.json`; a.click(); },
+    exportChatToTxt: function() { const r = this.getActiveRoom(); if(!r) return; const w = r.worldInstance; let txt = `${r.name} - 로그\\n\\n`; r.history.forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${r.name}.txt`; a.click(); },
     importData: function(e) { 
         const r = new FileReader(); 
-        r.onload = (ev) => { 
+        r.onload = async (ev) => { 
             try { 
                 const st = JSON.parse(ev.target.result); 
-                Object.keys(localStorage).forEach(k => { if(k.startsWith('rpRoom_v') || k.startsWith('rpWorld_v') || k.startsWith('rpMaster_v')) localStorage.removeItem(k); }); 
-                const m = { apiKey: st.apiKey, modelName: st.modelName, safety: st.safety, roomTags: st.roomTags, worlds: st.worlds.map(w=>({id:w.id, name:w.name})), rooms: st.rooms.map(rm=>({id:rm.id, name:rm.name, lastUpdated:rm.lastUpdated})) }; 
-                localStorage.setItem(`rpMaster_v${this.VERSION}`, JSON.stringify(m)); 
-                st.worlds.forEach(w => localStorage.setItem(`rpWorld_v${this.VERSION}_` + w.id, JSON.stringify(w))); 
-                st.rooms.forEach(rm => localStorage.setItem(`rpRoom_v${this.VERSION}_` + rm.id, JSON.stringify(rm))); 
-                location.reload(); 
-            } catch(er) { alert("올바른 백업 파일이 아닙니다."); } 
+                if(this.db) { this.db.close(); this.db = null; } 
+                await new Promise(res => { const req = indexedDB.deleteDatabase('10009SIM_DB'); req.onsuccess = res; req.onerror = res; });
+                
+                this.db = await this.openDB();
+                const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
+                tx.objectStore('master').put({id:'main', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.1-flash-lite-preview', safety:st.safety||this.state.safety, roomTags:st.roomTags||[]});
+                if(st.worlds) st.worlds.forEach(w => tx.objectStore('worlds').put(w)); 
+                if(st.rooms) st.rooms.forEach(rm => tx.objectStore('rooms').put(rm));
+                tx.oncomplete = () => { alert("복원 완료! 앱을 재시작합니다."); window.location.reload(); };
+            } catch(err) { alert("잘못된 파일입니다."); } 
         }; 
         if(e.target.files[0]) r.readAsText(e.target.files[0]); 
     }
