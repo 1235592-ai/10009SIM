@@ -1,4 +1,4 @@
-const CACHE_NAME = '10009SIM-cache';
+const CACHE_NAME = '10009SIM-cache-v3';
 const urlsToCache = [
   './',
   './index.html',
