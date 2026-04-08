@@ -182,7 +182,7 @@ body {
     background-size: cover;
     background-position: center;
     background-blend-mode: overlay;
-    background-color: rgba(10, 10, 10, 0.85); /* 딤 처리 */
+    background-color: rgba(10, 10, 10, 0.85);
 }
 
 header {
@@ -393,6 +393,7 @@ input:checked + .slider:before { transform: translateX(14px); background-color: 
 /* =========================================
    8. Panels (World, Char, System)
 ========================================= */
+/* 🔥 수정됨: 스크롤 막힘 버그 해결을 위해 강제 높이 지정 및 플렉스 해제 */
 .panel {
     position: fixed;
     top: 0; right: 0; bottom: 0; width: 100%; max-width: 400px;
@@ -400,11 +401,11 @@ input:checked + .slider:before { transform: translateX(14px); background-color: 
     z-index: 1000;
     transform: translateX(100%);
     transition: transform 0.3s ease-in-out;
-    display: flex;
-    flex-direction: column;
+    display: block; /* Flex 해제 */
     box-shadow: -5px 0 15px rgba(0,0,0,0.8);
     overflow-y: auto;
     padding: 20px;
+    padding-bottom: 80px; /* 스크롤 최하단 도달 시 여백 제공 */
 }
 .panel.open { transform: translateX(0); }
 
