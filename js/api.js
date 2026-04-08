@@ -31,21 +31,17 @@ window.API = {
         return data.candidates[0].content.parts[0].text;
     },
 
-    // 🔥 완벽하게 재설계된 무적의 JSON 파서
     parseAIJsonRaw: function(text) {
         if (!text) return null;
         let clean = text.replace(/```json/ig, '').replace(/```/ig, '').trim();
         
-        // 1차 시도: 깔끔한 형태일 경우 바로 파싱
         try { return JSON.parse(clean); } catch(e) {}
         
-        // 2차 시도: 앞뒤 텍스트가 섞여 있거나 찌꺼기가 남은 경우 괄호 추적
         try {
             let firstBrace = clean.indexOf('{');
             let firstBracket = clean.indexOf('[');
             let startIdx = -1, endIdx = -1;
 
-            // 객체({})인지 배열([])인지 가장 겉면의 괄호를 정확히 판단
             if (firstBrace !== -1 && firstBracket !== -1) {
                 if (firstBrace < firstBracket) {
                     startIdx = firstBrace; endIdx = clean.lastIndexOf('}');
@@ -60,9 +56,7 @@ window.API = {
 
             if (startIdx !== -1 && endIdx !== -1) {
                 let sub = clean.substring(startIdx, endIdx + 1);
-                // AI의 고질적인 문법 오류인 배열/객체 끝부분의 콤마 찌꺼기 제거
                 sub = sub.replace(/,\s*([\]}])/g, '$1');
-                // 파싱에 치명적인 제어문자(보이지 않는 특수문자) 삭제
                 sub = sub.replace(/[\u0000-\u0019]+/g, ""); 
                 return JSON.parse(sub);
             }
@@ -79,8 +73,9 @@ window.API = {
         return this.parseAIJsonRaw(text);
     },
 
+    // 🔥 프롬프트 대대적 수정: 예시 제거 및 장르/분위기 파악 강제
     generateMoreKeywords: async function(keywords) {
-        const p = `현재 키워드: [${keywords.join(', ')}]\n세계관을 더 매력적으로 확장하기 위해 어울리는 핵심 키워드 3개를 추가로 제안해. 기존과 중복 금지. 다른 설명 없이 오직 콤마(,)로 구분된 단어 3개만 반환해. (예: 마법, 제국, 아카데미)`;
+        const p = `현재 키워드: [${keywords.join(', ')}]\n지시: 위 키워드들이 암시하는 '장르'와 '분위기'를 완벽하게 파악해서, 이 세계관을 더 구체화할 수 있는 핵심 키워드 3개를 제안해.\n주의: 기존 키워드가 현대, SF, 무협 등이라면 그 장르에 절대적으로 맞출 것. 기존 키워드와 중복 금지.\n출력: 다른 설명 없이 오직 콤마(,)로 구분된 단어 3개만 반환해.`;
         return await this.callGemini([{role:'user', parts:[{text: p}]}], null, {temp: 0.9});
     },
 
