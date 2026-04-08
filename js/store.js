@@ -1,14 +1,13 @@
 window.Store = {
-    VERSION: 100, // 클린 무제한 DB 버전
+    VERSION: 100,
     state: {
         apiKey: '', modelName: 'gemini-3.1-flash-lite-preview',
-        safety: { violence: false, coercion: false, sexual: false, abuse: false, selfharm: false, drugs: false },
+        safety: { violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false },
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
     saveTimeout: null,
     db: null,
 
-    // 📦 무제한 창고(IndexedDB) 제어 엔진
     openDB: function() {
         return new Promise((resolve, reject) => {
             const req = indexedDB.open('10009SIM_DB', 1);
@@ -34,7 +33,7 @@ window.Store = {
         if (master) {
             this.state.apiKey = master.apiKey || ''; 
             this.state.modelName = master.modelName || 'gemini-3.1-flash-lite-preview';
-            this.state.safety = master.safety || this.state.safety; 
+            this.state.safety = Object.assign({ violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false }, master.safety || {}); 
             this.state.roomTags = master.roomTags || [];
             this.state.worlds = await this.dbGetAll('worlds');
             this.state.rooms = await this.dbGetAll('rooms');
@@ -80,7 +79,6 @@ window.Store = {
     createNewWorldTemplate: function() { const newW = { id: 'w_'+Date.now(), name: '새 세계관', prompt: '', bgUrl: '', regions: [], locations: [], factions: [], loreFolders: [], lores: [], characters: [{id:'sys', keyword:'시스템', desc:'', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:true}] }; this.state.worlds.unshift(newW); this.forceSave(); UI.renderWorldTemplateList(); UI.showToast("새 템플릿 생성됨"); App.editWorldTemplate(newW.id); },
     deleteWorldTemplate: function(id) { if(!confirm("이 템플릿을 영구 삭제하시겠습니까? (시나리오 데이터는 유지됨)")) return; this.state.worlds = this.state.worlds.filter(w => w.id !== id); this.dbDelete('worlds', id); this.forceSave(); UI.renderWorldTemplateList(); },
     
-    // 🔥 버그 수정: || 를 ??(Nullish Coalescing)로 교체하여 빈 문자열 정상 저장
     syncWorldDOM: function() {
         const w = this.getTargetWorld(); if(!w) return;
         w.name = document.getElementById('w-n')?.value ?? w.name; 
@@ -100,7 +98,6 @@ window.Store = {
     addRegion: function() { const w = this.getTargetWorld(); this.syncWorldDOM(); w.regions.push({ id:'reg_'+Date.now(), name:'', desc:'' }); this.forceSave(); UI.renderWorld(); },
     addLocation: function(rId) { const w = this.getTargetWorld(); this.syncWorldDOM(); w.locations.push({ id:'loc_'+Date.now(), regionId: rId, name:'', desc:'' }); this.forceSave(); UI.renderWorld(); },
     
-    // 🔥 버그 수정: 장소(loc) 삭제 시 currentLocIdx 보정 로직 부활
     delWorldItem: function(type, id, e) {
         if(e) e.stopPropagation(); if(!confirm("삭제하시겠습니까?")) return;
         const w = this.getTargetWorld(); this.syncWorldDOM();
@@ -122,7 +119,6 @@ window.Store = {
         this.forceSave(); UI.renderWorld();
     },
 
-    // 🔥 버그 수정: 여기도 ?? 로 교체
     syncCharDOM: function() {
         const w = this.getTargetWorld(); if(!w) return;
         w.characters.forEach(c => {
@@ -150,8 +146,17 @@ window.Store = {
     delRep: function(cId, rIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("이 성향 축을 삭제하시겠습니까?")) { this.syncCharDOM(); c.reputation.splice(rIdx, 1); this.forceSave(); UI.renderCharacters(); } },
     upRep: function(cId, rIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.reputation[rIdx]) { c.reputation[rIdx][key] = (key==='value' ? Number(val) : val); this.forceSave(); } },
 
-    exportData: function() { const exp = { apiKey: this.state.apiKey, modelName: this.state.modelName, safety: this.state.safety, roomTags: this.state.roomTags, worlds: this.state.worlds, rooms: this.state.rooms }; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exp)], {type:'application/json'})); a.download = `10009SIM_Backup_${Date.now()}.json`; a.click(); },
-    exportChatToTxt: function() { const r = this.getActiveRoom(); if(!r) return; const w = r.worldInstance; let txt = `${r.name} - 로그\\n\\n`; r.history.forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${r.name}.txt`; a.click(); },
+    exportData: function() { 
+        if(!confirm("모든 설정과 시나리오 데이터를 백업 파일(JSON)로 다운로드하시겠습니까?")) return;
+        const exp = { apiKey: this.state.apiKey, modelName: this.state.modelName, safety: this.state.safety, roomTags: this.state.roomTags, worlds: this.state.worlds, rooms: this.state.rooms }; 
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exp)], {type:'application/json'})); a.download = `10009SIM_Backup_${Date.now()}.json`; a.click(); 
+    },
+    exportChatToTxt: function() { 
+        if(!confirm("현재 시나리오의 대화 로그를 텍스트 파일(TXT)로 다운로드하시겠습니까?")) return;
+        const r = this.getActiveRoom(); if(!r) return; const w = r.worldInstance; let txt = `${r.name} - 로그\\n\\n`; 
+        r.history.forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\\n${m.variants[m.currentVariant]}\\n\\n`; }); 
+        const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${r.name}.txt`; a.click(); 
+    },
     importData: function(e) { 
         const r = new FileReader(); 
         r.onload = async (ev) => { 
