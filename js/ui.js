@@ -44,7 +44,6 @@ window.UI = {
         else if (App.isPanelOpen) { history.back(); }
     },
 
-    // 🔥 새 UI 로직: 팝업(드로어) 제어 및 스위치 색상 씽크
     toggleActionPopover: function() {
         const pop = document.getElementById('dice-settings-popover');
         const btn = document.getElementById('btn-action-expand');
@@ -56,16 +55,10 @@ window.UI = {
             pop.classList.add('open');
             btn.classList.add('open');
             btn.innerText = '✕';
-            // 팝업이 열릴 때마다 주사위 설정과 스탯을 최신화하여 버그 방지
             if(window.Dice) window.Dice.refreshDiceUI();
         }
     },
-    toggleActionState: function(type) {
-        const chkId = type === 'long' ? 'long-response' : 'dice-enable';
-        const chk = document.getElementById(chkId);
-        chk.checked = !chk.checked; // 상태 반전
-        this.syncActionState(type);
-    },
+
     syncActionState: function(type) {
         const chkId = type === 'long' ? 'long-response' : 'dice-enable';
         const wrapId = type === 'long' ? 'toggle-long' : 'toggle-dice';
