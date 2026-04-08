@@ -44,19 +44,30 @@ window.UI = {
         else if (App.isPanelOpen) { history.back(); }
     },
 
+    // 🔥 브라우저 뒤로가기(History)와 완벽 연동되는 팝업 컨트롤러
     toggleActionPopover: function() {
         const pop = document.getElementById('dice-settings-popover');
-        const btn = document.getElementById('btn-action-expand');
         if(pop.classList.contains('open')) {
-            pop.classList.remove('open');
-            btn.classList.remove('open');
-            btn.innerText = '+';
+            history.back(); // 열려있을 땐 뒤로가기 이벤트를 발생시켜 popstate에서 닫게 함
         } else {
-            pop.classList.add('open');
-            btn.classList.add('open');
-            btn.innerText = '✕';
-            if(window.Dice) window.Dice.refreshDiceUI();
+            history.pushState({ popover: true }, ""); 
+            this.internalOpenPopover();
         }
+    },
+    internalOpenPopover: function() {
+        const pop = document.getElementById('dice-settings-popover');
+        const btn = document.getElementById('btn-action-expand');
+        pop.classList.add('open');
+        btn.classList.add('open');
+        btn.innerText = '✕';
+        if(window.Dice) window.Dice.refreshDiceUI();
+    },
+    internalClosePopover: function() {
+        const pop = document.getElementById('dice-settings-popover');
+        const btn = document.getElementById('btn-action-expand');
+        pop.classList.remove('open');
+        btn.classList.remove('open');
+        btn.innerText = '+';
     },
 
     syncActionState: function(type) {
