@@ -39,12 +39,14 @@
         <div id="tab-settings" class="lobby-content">
             <h3>🔑 API 설정</h3>
             <input type="password" id="set-api-key" class="input-std" placeholder="Gemini API Key" onchange="Store.saveSettings()">
-            <input type="text" id="set-model-name" class="input-std" list="model-list" placeholder="모델명" onchange="Store.saveSettings()">
-            <datalist id="model-list">
-                <option value="gemini-3.1-flash-lite-preview"></option>
-                <option value="gemini-3.1-flash"></option>
-                <option value="gemini-3.1-pro"></option>
-            </datalist>
+            
+            <select class="select-std" style="margin-bottom: 5px;" onchange="const m = document.getElementById('set-model-name'); if(this.value) { m.value = this.value; Store.saveSettings(); }">
+                <option value="">▼ 추천 모델 선택 (터치)</option>
+                <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview (가볍고 빠름)</option>
+                <option value="gemini-3.1-flash">gemini-3.1-flash (표준)</option>
+                <option value="gemini-3.1-pro">gemini-3.1-pro (고성능)</option>
+            </select>
+            <input type="text" id="set-model-name" class="input-std" placeholder="모델명 직접 입력 (예: gpt-4o)" onchange="Store.saveSettings()">
             
             <hr style="border-color:#333; margin:20px 0;">
             
