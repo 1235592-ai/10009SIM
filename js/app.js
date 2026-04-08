@@ -20,23 +20,54 @@ window.App = {
 
     init: async function() {
         await Store.init();
+        
+        // 🔥 화면 중첩 버그 수정: 초기 로드 시 뷰 강제 분리 및 기준 History 상태 생성
+        history.replaceState({ main: true }, "");
+        document.getElementById('game-container').style.display = 'none';
+        document.getElementById('lobby-container').style.display = 'flex';
+
         window.addEventListener('beforeunload', () => { Store.forceSave(); });
+        
+        // 🔥 브라우저 뒤로 가기(PopState) 라우팅 완벽 제어
         window.addEventListener('popstate', (e) => {
+            const pop = document.getElementById('dice-settings-popover');
+
+            // 1순위: 우측 패널(세계관, 인물 등)이 열려있으면 패널 닫기
             if (this.isPanelOpen) {
                 UI.syncPanelsBeforeClose();
-                this.isPanelOpen = false; document.querySelectorAll('.panel').forEach(p => p.classList.remove('open')); document.getElementById('overlay').classList.remove('active'); document.querySelectorAll('.modal-base').forEach(m => m.style.display = 'none');
-            } else { if (confirm("앱을 종료하시겠습니까?")) { history.back(); } else { history.pushState({ main: true }, ""); } }
+                this.isPanelOpen = false;
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
+                document.getElementById('overlay').classList.remove('active');
+            } 
+            // 2순위: 주사위 팝업(드로어)이 열려있으면 팝업 닫기
+            else if (pop && pop.classList.contains('open')) {
+                UI.internalClosePopover();
+            } 
+            // 3순위: 채팅방 안에 있다면 로비로 나가기
+            else if (Store.state.activeRoomId) {
+                if(this.isGenerating) {
+                    history.pushState({ page: 'room' }, ""); // 생성 중엔 나갈 수 없게 상태 복구
+                    return;
+                }
+                UI.syncPanelsBeforeClose();
+                Store.state.activeRoomId = null;
+                document.getElementById('game-container').style.display = 'none';
+                document.getElementById('lobby-container').style.display = 'flex';
+                UI.renderScenarioList();
+            } 
+            // 4순위: 로비 화면이라면 앱 종료 확인
+            else {
+                if (confirm("앱을 종료하시겠습니까?")) { history.back(); } else { history.pushState({ main: true }, ""); }
+            }
         });
         
-        // 🔥 빈 공간 클릭 시 드로어(팝업) 닫기 이벤트 바인딩
+        // 빈 공간 클릭 시 드로어(팝업) 닫기 이벤트 바인딩
         document.addEventListener('click', (e) => {
             const pop = document.getElementById('dice-settings-popover');
             const btn = document.getElementById('btn-action-expand');
             if (pop && pop.classList.contains('open')) {
-                if (!pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-                    pop.classList.remove('open');
-                    btn.classList.remove('open');
-                    btn.innerText = '+';
+                if (!pop.contains(e.target) && !btn.contains(e.target)) {
+                    history.back(); // PopState 트리거를 통해 안전하게 닫기
                 }
             }
         });
@@ -56,8 +87,25 @@ window.App = {
         }
     },
 
-    enterRoom: function(id) { Store.state.activeRoomId = id; const r = Store.getActiveRoom(); r.lastUpdated = Date.now(); document.getElementById('lobby-container').classList.add('hidden'); this.loadActiveRoom(); Store.forceSave(); },
-    exitToLobby: function() { if(this.isGenerating) return; UI.syncPanelsBeforeClose(); document.querySelectorAll('.panel').forEach(p => p.classList.remove('open')); document.getElementById('overlay').classList.remove('active'); Store.state.activeRoomId = null; document.getElementById('lobby-container').classList.remove('hidden'); UI.renderScenarioList(); },
+    enterRoom: function(id) { 
+        Store.state.activeRoomId = id; 
+        const r = Store.getActiveRoom(); 
+        r.lastUpdated = Date.now(); 
+        
+        // 🔥 화면 중첩 버그 수정: 뷰 스위칭 및 상태 푸시
+        document.getElementById('lobby-container').style.display = 'none';
+        document.getElementById('game-container').style.display = 'flex';
+        history.pushState({ page: 'room' }, ""); 
+        
+        this.loadActiveRoom(); 
+        Store.forceSave(); 
+    },
+    
+    exitToLobby: function() { 
+        if(this.isGenerating) return; 
+        // 버튼 클릭 시 실제 나가는 로직은 popstate 이벤트 헨들러에게 위임
+        history.back(); 
+    },
     
     editWorldTemplate: function(id) { Store.state.activeRoomId = null; Store.state.activeWorldId = id; UI.togglePanel('world-panel'); },
 
