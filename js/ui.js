@@ -1,35 +1,30 @@
 window.UI = {
     activeModal: null,
+    lastFocusedWorldInput: null, 
 
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
     autoResize: function(el) { 
         if (!el) return; 
         el.style.height = '1px'; 
-        
         const maxH = 300; 
-        
-        if (el.scrollHeight >= maxH) {
-            el.style.height = maxH + 'px';
-            el.style.overflowY = 'auto';
-        } else {
-            el.style.height = el.scrollHeight + 'px';
-            el.style.overflowY = 'hidden';
-        }
-        
+        if (el.scrollHeight >= maxH) { el.style.height = maxH + 'px'; el.style.overflowY = 'auto'; } 
+        else { el.style.height = el.scrollHeight + 'px'; el.style.overflowY = 'hidden'; }
         if (el.id === 'msg-input') this.scrollToBottom(true); 
     },
 
     scrollToBottom: function(instant = false) { const c = document.getElementById('chat-container'); if(instant) c.scrollTop = c.scrollHeight; else c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }); },
     showToast: function(msg) { const t = document.getElementById('toast-noti'); t.innerText=msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); },
     
+    showAILoader: function(msg) { const ld = document.getElementById('global-ai-loader'); const txt = document.getElementById('loader-msg'); if(ld) { if(txt) txt.innerText = msg; ld.classList.add('show'); } },
+    hideAILoader: function() { const ld = document.getElementById('global-ai-loader'); if(ld) ld.classList.remove('show'); },
+
     switchTab: function(id, e) { document.querySelectorAll('.lobby-tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.lobby-content').forEach(c=>c.classList.remove('active')); e.target.classList.add('active'); document.getElementById(id).classList.add('active'); if(id === 'tab-scenarios') this.renderScenarioList(); if(id === 'tab-worlds') this.renderWorldTemplateList(); },
     
-    // 🔥 모달 열림 시 브라우저 히스토리 스택 추가
     openModal: function(id) { 
         this.activeModal = id;
         document.getElementById(id).style.display = 'block'; 
         document.getElementById('overlay').classList.add('active'); 
-        history.pushState({ modal: id }, ""); // 백버튼 방어선 구축
+        history.pushState({ modal: id }, ""); 
     },
     closeModal: function(id) { 
         this.activeModal = null;
@@ -42,35 +37,25 @@ window.UI = {
         if(!document.querySelector('.panel.open')) { document.getElementById('overlay').classList.remove('active'); }
     },
     closeOverlay: function() {
-        if(this.activeModal) { 
-            history.back(); // 오버레이 클릭 시에도 자연스러운 popstate 트리거 유도
-        } 
+        if(this.activeModal) { history.back(); } 
         else if (App.isPanelOpen) { history.back(); }
     },
 
     toggleActionPopover: function() {
         const pop = document.getElementById('dice-settings-popover');
-        if(pop.classList.contains('open')) {
-            history.back(); 
-        } else {
-            history.pushState({ popover: true }, ""); 
-            this.internalOpenPopover();
-        }
+        if(pop.classList.contains('open')) { history.back(); } 
+        else { history.pushState({ popover: true }, ""); this.internalOpenPopover(); }
     },
     internalOpenPopover: function() {
         const pop = document.getElementById('dice-settings-popover');
         const btn = document.getElementById('btn-action-expand');
-        pop.classList.add('open');
-        btn.classList.add('open');
-        btn.innerText = '✕';
+        pop.classList.add('open'); btn.classList.add('open'); btn.innerText = '✕';
         if(window.Dice) window.Dice.refreshDiceUI();
     },
     internalClosePopover: function() {
         const pop = document.getElementById('dice-settings-popover');
         const btn = document.getElementById('btn-action-expand');
-        pop.classList.remove('open');
-        btn.classList.remove('open');
-        btn.innerText = '+';
+        pop.classList.remove('open'); btn.classList.remove('open'); btn.innerText = '+';
     },
 
     syncActionState: function(type) {
@@ -78,8 +63,7 @@ window.UI = {
         const wrapId = type === 'long' ? 'toggle-long' : 'toggle-dice';
         const chk = document.getElementById(chkId);
         const wrap = document.getElementById(wrapId);
-        if(chk.checked) wrap.classList.add('active');
-        else wrap.classList.remove('active');
+        if(chk.checked) wrap.classList.add('active'); else wrap.classList.remove('active');
     },
 
     syncPanelsBeforeClose: function() { if(document.getElementById('world-panel').classList.contains('open')) Store.syncWorldDOM(); if(document.getElementById('char-panel').classList.contains('open')) Store.syncCharDOM(); },
@@ -91,15 +75,9 @@ window.UI = {
         
         if(p.classList.contains('open')) { 
             if(App.isPanelOpen) history.back(); 
-        } 
-        else {
-            // 🔥 Race Condition 해결: 주사위 팝업이 열려있으면 강제로 먼저 닫고 Panel 스택으로 교체
-            if (pop && pop.classList.contains('open')) {
-                this.internalClosePopover();
-                history.replaceState({ panel: true }, "");
-            } else {
-                if(!App.isPanelOpen) { history.pushState({ panel: true }, ""); }
-            }
+        } else {
+            if (pop && pop.classList.contains('open')) { this.internalClosePopover(); history.replaceState({ panel: true }, ""); } 
+            else { if(!App.isPanelOpen) { history.pushState({ panel: true }, ""); } }
             App.isPanelOpen = true;
             
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('open')); 
@@ -110,26 +88,22 @@ window.UI = {
             if(id==='world-panel') { 
                 if(Store.state.activeRoomId) { document.getElementById('world-panel-title').innerText = "🗺️ 인게임 세계 설정"; document.getElementById('btn-free-roam').style.display = 'block'; } 
                 else { document.getElementById('world-panel-title').innerText = "🌌 템플릿 원본 편집"; document.getElementById('btn-free-roam').style.display = 'none'; } 
+                this.lastFocusedWorldInput = null;
+                const mBtn = document.getElementById('magic-btn');
+                if(mBtn) { mBtn.disabled = true; mBtn.style.opacity = '0.3'; mBtn.style.boxShadow = 'none'; }
                 this.renderWorld(); 
             }
             if(id==='char-panel') { 
-                if(!Store.state.activeRoomId) { 
-                    document.getElementById('h3-my-char').style.display = 'none'; document.getElementById('h3-active-npc').style.display = 'none'; 
-                    document.getElementById('h3-other-char').innerText = '👥 모든 인물';
-                } else { 
-                    document.getElementById('h3-my-char').style.display = 'block'; document.getElementById('h3-active-npc').style.display = 'block'; 
-                    document.getElementById('h3-other-char').innerText = '👥 대기 중인 조연';
-                } 
+                if(!Store.state.activeRoomId) { document.getElementById('h3-my-char').style.display = 'none'; document.getElementById('h3-active-npc').style.display = 'none'; document.getElementById('h3-other-char').innerText = '👥 모든 인물'; } 
+                else { document.getElementById('h3-my-char').style.display = 'block'; document.getElementById('h3-active-npc').style.display = 'block'; document.getElementById('h3-other-char').innerText = '👥 대기 중인 조연'; } 
                 this.renderCharFilter(); this.renderCharacters(); 
             } 
             if(id==='sys-panel') { 
                 const r = Store.getActiveRoom();
                 const memInput = document.getElementById('room-memory-input'); memInput.value = r.memory || ''; 
                 const statInput = document.getElementById('global-status-input'); statInput.value = r.globalStatus || ''; 
-                
                 const sel = document.getElementById('network-preset-sel');
                 if(sel) { sel.value = r.networkPreset || 'modern'; this.toggleCustomNet(sel.value); }
-                
                 this.renderNetworkArchive(); 
                 setTimeout(() => {this.autoResize(memInput); this.autoResize(statInput);}, 10); 
             } 
@@ -138,11 +112,7 @@ window.UI = {
 
     renderSafetyUI: function() {
         const container = document.getElementById('safety-checks'); if(!container) return;
-        const labels = { 
-            violence: "폭력 및 유혈", discrimination: "혐오 및 차별", sexual: "성적 표현", abuse: "학대 묘사", 
-            selfharm: "자해 및 자살", drugs: "음주 및 약물", marysue: "과잉 찬양", obsession: "소유욕 및 집착",
-            gore: "공포 및 기괴함", romance: "로맨스 전개"
-        };
+        const labels = { violence: "폭력 및 유혈", discrimination: "혐오 및 차별", sexual: "성적 표현", abuse: "학대 묘사", selfharm: "자해 및 자살", drugs: "음주 및 약물", marysue: "과잉 찬양", obsession: "소유욕 및 집착", gore: "공포 및 기괴함", romance: "로맨스 전개" };
         container.innerHTML = Object.keys(Store.state.safety).map(key => {
             if (!labels[key]) return ''; 
             return `<label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; font-size:0.85rem;"><input type="checkbox" ${Store.state.safety[key] ? 'checked' : ''} onchange="Store.state.safety.${key}=this.checked; Store.saveSettings();"> ${labels[key]}</label>`;
@@ -152,7 +122,6 @@ window.UI = {
     renderScenarioList: function() {
         let filter = document.getElementById('lobby-room-filter').value;
         if (!filter) filter = 'all'; 
-        
         const sortedRooms = [...Store.state.rooms].sort((a,b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
         document.getElementById('scenario-list').innerHTML = sortedRooms.map((r, idx) => {
             if(filter !== 'all' && !r.tagIds.includes(filter)) return ''; const isRecent = idx === 0 && r.lastUpdated;
@@ -165,16 +134,22 @@ window.UI = {
     
     renderWorldTemplateList: function() { document.getElementById('world-template-list').innerHTML = Store.state.worlds.map(w => `<div class="lobby-card" style="border-left-color:#059669;"><div style="font-weight:bold; font-size:1.1rem; color:#fff;">${this.esc(w.name)}</div><div style="font-size:0.8rem; color:#aaa; margin-top:4px;">${w.characters.length - 1}명 / 🗺️ ${w.regions.length}지역 / 📍 ${w.locations.length}장소</div><div class="card-btns"><button class="btn-play" style="background:#059669;" onclick="App.editWorldTemplate('${w.id}')">🛠 템플릿 편집</button><button class="btn-play" style="background:#262626; max-width:40px;" onclick="Store.deleteWorldTemplate('${w.id}')">✖</button></div></div>`).join(''); },
     
+    renderKeywords: function() {
+        const w = Store.getTargetWorld();
+        const area = document.getElementById('w-keyword-list');
+        if(!area || !w) return;
+        if(!w.keywords) w.keywords = [];
+        area.innerHTML = w.keywords.map(k => `<span class="k-chip">#${this.esc(k)} <button tabindex="-1" onclick="Store.removeKeyword('${k}')">×</button></span>`).join('');
+    },
+
     renderWorld: function() {
         const w = Store.getTargetWorld(); if(!w) return;
-
         const panel = document.getElementById('world-panel');
         const st = panel ? panel.scrollTop : 0; 
-
         let openState = [];
-        if (panel && panel.classList.contains('open')) {
-            panel.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); });
-        }
+        if (panel && panel.classList.contains('open')) { panel.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); }); }
+
+        this.renderKeywords();
 
         const wnEl = document.getElementById('w-n'); if(wnEl) wnEl.value = w.name || ''; 
         const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; 
@@ -203,11 +178,19 @@ window.UI = {
             regList.innerHTML += locMap[''].length > 0 ? locMap[''].map(loc=>renderLocItem(loc, w.locations.findIndex(x=>x.id===loc.id))).join('') : '<p style="font-size:0.8rem; color:#666;">미분류 장소가 없습니다.</p>';
         }
 
-        openState.forEach(id => { 
-            const el = document.getElementById(id); 
-            if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } 
-        });
-        
+        const hasContent = w.name || w.prompt || w.factions.length > 0 || w.lores.length > 0 || w.locations.length > 0;
+        const sketchBtn = document.getElementById('btn-world-sketch');
+        if(sketchBtn) {
+            if(hasContent) {
+                sketchBtn.innerHTML = '🔄 세계관 다시 스케치하기 (전체 덮어쓰기)';
+                sketchBtn.style.background = '#b91c1c';
+            } else {
+                sketchBtn.innerHTML = '✨ 세계관 초안 스케치';
+                sketchBtn.style.background = '#8b5cf6';
+            }
+        }
+
+        openState.forEach(id => { const el = document.getElementById(id); if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } });
         if(panel) panel.scrollTop = st; 
     },
 
