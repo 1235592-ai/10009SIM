@@ -70,10 +70,28 @@ window.API = {
         if(loc) p += `\n[장소: ${reg?reg.name+' - ':''}${loc.name}]${loc.desc?.trim() ? ' (특징: '+loc.desc.trim()+')' : ''}\n`;
         let mem = r.memory || ""; const memBlocks = mem.split('[자동 요약]'); let memToSend = memBlocks[0]; if (memBlocks.length > 1) { memToSend += '[자동 요약]' + memBlocks.slice(Math.max(1, memBlocks.length - 2)).join('[자동 요약]'); } if(memToSend.trim()) p += `[상황 기억]\n${memToSend.trim()}\n`;
         const info = []; w.characters.forEach(c => { if(c.isHidden || c.id === r.myCharId || c.id === 'sys') return; if(c.triggerLocId && loc && c.triggerLocId !== loc.id) return; if(c.keyword && scan.includes(c.keyword) && !r.activeCharIds.includes(c.id)) info.push(`- ${c.keyword}: ${c.desc}`); }); w.factions.forEach(f => { if(f.name && scan.includes(f.name)) info.push(`- 세력 ${f.name}: ${f.desc}`); }); w.lores.forEach(l => { if(l.triggerLocId && loc && l.triggerLocId !== loc.id) return; if(l.keyword && scan.includes(l.keyword)) info.push(`- 지식 ${l.keyword}: ${l.desc}`); }); if(info.length) p += `\n[언급된 대기 요소]\n${info.join("\n")}\n`;
+        
         if(scan.includes('🎲') || scan.includes('⚔️')) p += `\n*주의: 주사위 판정 결과를 바탕으로 연출하세요.*\n`;
+        
         const isLong = document.getElementById('long-response')?.checked;
         p += `\n규칙:\n- ⚠️ 플레이어(${myChar.keyword}) 대사/행동 대리 묘사 절대 금지.\n- 지문은 자연스럽게. 대사는 "이름: 대사" (따옴표 없이).\n- 메타발언(스탯, D100 등) 절대 금지. 극적 상황으로만 묘사.\n- ${isLong ? "**1500자 이상 아주 길고 상세하게 묘사할 것.**" : "500자 내외로 서술할 것."}`; 
-        let br = []; if(Store.state.safety.violence) br.push("잔혹한 폭력"); if(Store.state.safety.coercion) br.push("강제/통제"); if(Store.state.safety.sexual) br.push("성적 묘사"); if(Store.state.safety.abuse) br.push("모욕/학대"); if(Store.state.safety.selfharm) br.push("자해/자살"); if(Store.state.safety.drugs) br.push("마약/약물"); if(br.length > 0) p += `\n[금지 묘사: ${br.join(', ')}]`;
+        
+        let ruleLines = [];
+        if(Store.state.safety.violence) ruleLines.push("신체 훼손 및 과도한 유혈 묘사 100% 금지. 전투 묘사는 상처의 깊이보다 행위 자체에 집중하여 건조하고 간결하게 서술할 것.");
+        if(Store.state.safety.discrimination) ruleLines.push("출신, 성별 등 특정 집단을 비하하는 멸칭이나 차별적 욕설은 어떤 악역이라도 절대 사용 불가. 위반 시 캐릭터성 붕괴로 간주함.");
+        if(Store.state.safety.sexual) ruleLines.push("성적 묘사 및 원치 않는 스킨십 절대 금지. 캐릭터 간의 접촉은 철저히 플라토닉한 수준으로 제한할 것.");
+        if(Store.state.safety.abuse) ruleLines.push("타인을 가학적으로 억압하거나 심리적/신체적으로 고문하는 묘사 즉시 중단. 불쾌한 상황은 구체적 묘사를 생략하고 상황 결과만 서술할 것.");
+        if(Store.state.safety.selfharm) ruleLines.push("자해 또는 자살 관련 극단적 행위는 일절 언급 금지. 우울감은 행동이나 표정으로만 간접적으로 묘사할 것.");
+        if(Store.state.safety.drugs) ruleLines.push("불법 약물 투약 및 심신상실 상태의 만취 묘사 불가. 음주 상황이더라도 이성적인 판단력을 유지하게 할 것.");
+        if(Store.state.safety.marysue) ruleLines.push("⚠️ [성장물 절대 규칙] 주인공 띄워주기 및 먼치킨 취급 절대 금지. 모든 NPC는 주인공의 현재 스탯만큼만 무미건조하게 평가하며, 주인공이 실력으로 증명하기 전까지는 철저히 하찮게 보거나 무시할 것.");
+        if(Store.state.safety.obsession) ruleLines.push("⚠️ [관계 절대 규칙] 감금, 감시, 스토킹, 비윤리적 소유욕 등 범죄적 집착 묘사 절대 불가. 모든 캐릭터는 타인의 사적 영역과 자유 의지를 철저히 존중하는 성숙한 어른으로 행동할 것.");
+        if(Store.state.safety.gore) ruleLines.push("내장 노출 등 불쾌한 기괴함이나 고어 묘사 금지. 괴물이나 적을 묘사할 때는 징그러움보다는 위협적인 분위기와 압도감 조성에만 집중할 것.");
+        if(Store.state.safety.romance) ruleLines.push("⚠️ [로맨스 원천 차단] 모든 NPC는 주인공에게 성애적 감정을 절대 느끼지 않으며 연애 플래그 성립 불가. 철저히 이해관계에 얽힌 비즈니스 파트너나 선을 긋는 동료로만 대할 것.");
+
+        if(ruleLines.length > 0) {
+            p += `\n\n[적용된 시스템 통제 규칙]\n- ` + ruleLines.join(`\n- `);
+        }
+        
         return p;
     },
 
@@ -93,6 +111,7 @@ window.API = {
         net.innerHTML = '<div style="display:flex; align-items:center; gap:8px; color:#fbbf24; font-weight:bold;">세계 반응 스캔 중 <div class="typing-indicator"><span></span><span></span><span></span></div></div>';
         const ctx = r.history.slice(-4).map(m => m.variants[m.currentVariant]).join("\n");
         
+        // 🔥 네트워크 프리셋 데이터가 온전히 살아있는 영역입니다.
         const presets = {
             modern: { name: "현대/현판", tags: ["📰 [공식 보도]", "🔴 [현장 라이브]", "💻 [커뮤니티]", "🔒 [프라이빗 채널]"] },
             medieval: { name: "중세/로판", tags: ["📜 [황실 공고]", "👗 [연회장 실황]", "🍰 [사교계 가십]", "✉️ [비밀 서신]"] },
