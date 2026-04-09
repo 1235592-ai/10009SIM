@@ -17,8 +17,8 @@ window.App = {
         const modEl = document.getElementById('set-model-name'); if(modEl) modEl.value = Store.state.modelName || 'gemini-3.1-flash-lite-preview';
         const modSel = document.getElementById('model-preset-sel'); if(modSel) { const opts = Array.from(modSel.options).map(o => o.value); modSel.value = opts.includes(Store.state.modelName) ? Store.state.modelName : ''; }
 
-        // 🔥 History API가 막혀도 스크립트가 죽지 않도록 방어 (안전 설정 증발 방어막)
-        try { history.replaceState({ page: 'lobby' }, ""); } catch(e) { console.warn("Local history API 막힘 무시"); }
+        // 🔥 치명적 버그 해결: 로컬 환경에서 앱을 즉사시키던 history 오류를 100% 무시함
+        try { history.replaceState({ page: 'lobby' }, ""); } catch(e) { console.warn("History API Blocked"); }
         
         document.getElementById('game-container').style.display = 'none';
         document.getElementById('lobby-container').style.display = 'block'; 
@@ -27,7 +27,6 @@ window.App = {
         window.addEventListener('beforeunload', () => { Store.forceSave(); });
         
         window.addEventListener('popstate', (e) => {
-            // 하드웨어 뒤로가기 버튼 대응 (명시적 UI 클리어)
             const pop = document.getElementById('dice-settings-popover');
             if (UI.activeModal) { UI.closeModal(UI.activeModal); return; }
             if (App.isPanelOpen) { UI.closeAllPanels(); return; } 
@@ -107,7 +106,7 @@ window.App = {
 
         document.getElementById('lobby-container').classList.remove('hidden');
         
-        // 🔥 여기가 멈추면 앱 전체가 백지가 됩니다. 위에서 에러를 잡았으니 무사히 실행됨!
+        // 🔥 스크립트가 죽지 않아야 여기까지 무사히 도달하여 UI를 그립니다.
         UI.renderScenarioList(); 
         UI.renderWorldTemplateList(); 
         UI.renderSafetyUI();
@@ -331,7 +330,6 @@ window.App = {
         this.loadActiveRoom(); Store.forceSave(); 
     },
     
-    // 🔥 로비로 나갈 때도 history 대신 명확한 UI 스위칭
     exitToLobby: function() { 
         if(this.isGenerating) return; 
         Store.state.activeRoomId = null; 
@@ -341,8 +339,6 @@ window.App = {
         UI.renderScenarioList(); 
         try { history.replaceState({ page: 'lobby' }, ""); } catch(e){}
     },
-    
-    editWorldTemplate: function(id) { Store.state.activeRoomId = null; Store.state.activeWorldId = id; UI.togglePanel('world-panel'); },
 
     loadActiveRoom: function(preserveScroll = false) {
         const r = Store.getActiveRoom(); if(!r) return; const w = r.worldInstance;
