@@ -41,6 +41,22 @@ window.UI = {
         if(id === 'tab-worlds') this.renderWorldTemplateList(); 
     },
     
+    // 🔥 패널 강제 종료 무적 방어 코드
+    forceClosePanel: function() {
+        if (App.isPanelOpen) {
+            history.back(); // 기본적으로 뒤로가기로 우아하게 닫기 시도
+            
+            // 만약 히스토리가 꼬여서 popstate가 안 먹혔을 경우 강제로 닫는 안전망
+            setTimeout(() => {
+                if (App.isPanelOpen) {
+                    App.isPanelOpen = false;
+                    document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
+                    document.getElementById('overlay').classList.remove('active');
+                }
+            }, 100);
+        }
+    },
+
     openModal: function(id) { 
         this.activeModal = id;
         document.getElementById(id).style.display = 'block'; 
@@ -57,9 +73,11 @@ window.UI = {
         document.querySelectorAll('.modal-base').forEach(m => m.style.display = 'none'); 
         if(!document.querySelector('.panel.open')) { document.getElementById('overlay').classList.remove('active'); }
     },
+    
+    // 🔥 오버레이 클릭 시 닫힘 처리 수정
     closeOverlay: function() {
         if(this.activeModal) { history.back(); } 
-        else if (App.isPanelOpen) { history.back(); }
+        else if (App.isPanelOpen) { this.forceClosePanel(); }
     },
 
     toggleActionPopover: function() {
