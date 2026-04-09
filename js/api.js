@@ -31,11 +31,12 @@ window.API = {
         return data.candidates[0].content.parts[0].text;
     },
 
-    // 🔥 마크다운 찌꺼기 완벽 차단 정규식
+    // 🔥 모든 찌꺼기와 생 줄바꿈을 완벽 방어하는 무적의 JSON 파서
     parseAIJsonRaw: function(text) {
         if (!text) return null;
-        let clean = text.replace(/```[a-z]*\n?/ig, '').trim();
+        let clean = text.replace(/```[a-z]*\n?/ig, '').replace(/```/g, '').trim();
         try { return JSON.parse(clean); } catch(e) {}
+        
         try {
             let firstBrace = clean.indexOf('{'); let firstBracket = clean.indexOf('[');
             let startIdx = -1, endIdx = -1;
@@ -48,12 +49,16 @@ window.API = {
 
             if (startIdx !== -1 && endIdx !== -1) {
                 let sub = clean.substring(startIdx, endIdx + 1);
-                sub = sub.replace(/,\s*([\]}])/g, '$1');
-                sub = sub.replace(/[\u0000-\u0019]+/g, ""); 
+                sub = sub.replace(/,\s*([\]}])/g, '$1'); 
+                // 파싱 브레이커인 포맷되지 않은 생 줄바꿈, 탭을 전부 공백으로 압착
+                sub = sub.replace(/[\n\r\t]/g, ' '); 
                 return JSON.parse(sub);
             }
             return null;
-        } catch (err) { return null; }
+        } catch (err) { 
+            console.error("JSON 파싱 치명적 오류:", err, "원본:", text);
+            return null; 
+        }
     },
 
     _buildWorldContextForChar: function(w) {
@@ -84,7 +89,7 @@ window.API = {
             return this.parseAIJsonRaw(text);
         } 
         else if (mode === 'desc_only' || mode === 'overwrite') {
-            p += `\n현재 타겟 이름: ${data.title}\n\n지시: 위 이름과 세계관 문맥을 바탕으로 이 항목의 상세 설정${hasSec ? "과 숨겨진 비밀" : ""}을 작성해라.\n`;
+            p += `\n현재 타겟 이름: ${data.title}\n\n지시: 위 이름과 세계관 문맥을 바탕으로 이 항목의 상세 설정${hasSec ? "과 숨겨진 비밀" : ""}을 새롭게 창작해라.\n`;
             if (hasSec) {
                 p += `포맷: {"desc": "상세 내용", "secret": "비밀 설정"} (JSON 객체로 반환할 것)`;
                 const text = await this.callGemini([{role:'user', parts:[{text: p}]}], "당신은 세계관 창조 마스터입니다.", {temp: 0.8, jsonMode: true});
