@@ -2,6 +2,10 @@ window.App = {
     isGenerating: false,
     isPanelOpen: false,
 
+    // 🔥 브라우저 환경에 따라 history API가 에러를 뿜고 스크립트를 정지시키는 현상 방어
+    safePushState: function(state, url) { try { history.pushState(state, "", url); } catch(e) { console.warn('History API 막힘:', e); } },
+    safeReplaceState: function(state, url) { try { history.replaceState(state, "", url); } catch(e) { console.warn('History API 막힘:', e); } },
+
     hardResetApp: function() {
         if(!confirm("최신 버전으로 앱을 강제 새로고침 하시겠습니까?\n(작성하신 시나리오와 설정 데이터는 안전하게 유지됩니다!)")) return;
         if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); }
@@ -17,7 +21,7 @@ window.App = {
         const modEl = document.getElementById('set-model-name'); if(modEl) modEl.value = Store.state.modelName || 'gemini-3.1-flash-lite-preview';
         const modSel = document.getElementById('model-preset-sel'); if(modSel) { const opts = Array.from(modSel.options).map(o => o.value); modSel.value = opts.includes(Store.state.modelName) ? Store.state.modelName : ''; }
 
-        history.replaceState({ page: 'lobby' }, "");
+        this.safeReplaceState({ page: 'lobby' }, "");
         document.getElementById('game-container').style.display = 'none';
         document.getElementById('lobby-container').style.display = 'block'; 
         document.body.style.backgroundImage = Store.state.lobbyBgUrl ? `url('${Store.state.lobbyBgUrl}')` : 'none';
@@ -29,8 +33,17 @@ window.App = {
             if (UI.activeModal) { const closingModal = UI.activeModal; UI.activeModal = null; document.getElementById(closingModal).style.display = 'none'; if(!document.querySelector('.panel.open')) { document.getElementById('overlay').classList.remove('active'); } return; }
             if (this.isPanelOpen) { UI.syncPanelsBeforeClose(); this.isPanelOpen = false; document.querySelectorAll('.panel').forEach(p => p.classList.remove('open')); document.getElementById('overlay').classList.remove('active'); return; } 
             if (pop && pop.classList.contains('open')) { UI.internalClosePopover(); return; } 
-            if (Store.state.activeRoomId) { if(this.isGenerating) { history.pushState({ page: 'room' }, ""); return; } UI.syncPanelsBeforeClose(); Store.state.activeRoomId = null; document.getElementById('game-container').style.display = 'none'; document.getElementById('lobby-container').style.display = 'block'; document.body.style.backgroundImage = Store.state.lobbyBgUrl ? `url('${Store.state.lobbyBgUrl}')` : 'none'; UI.renderScenarioList(); return; } 
-            if (confirm("앱을 종료하시겠습니까?")) { history.back(); } else { history.pushState({ page: 'lobby' }, ""); }
+            if (Store.state.activeRoomId) { 
+                if(this.isGenerating) { this.safePushState({ page: 'room' }, ""); return; } 
+                UI.syncPanelsBeforeClose(); 
+                Store.state.activeRoomId = null; 
+                document.getElementById('game-container').style.display = 'none'; 
+                document.getElementById('lobby-container').style.display = 'block'; 
+                document.body.style.backgroundImage = Store.state.lobbyBgUrl ? `url('${Store.state.lobbyBgUrl}')` : 'none'; 
+                UI.renderScenarioList(); 
+                return; 
+            } 
+            if (confirm("앱을 종료하시겠습니까?")) { history.back(); } else { this.safePushState({ page: 'lobby' }, ""); }
         });
         
         document.addEventListener('click', (e) => {
@@ -317,7 +330,7 @@ window.App = {
         }
     },
 
-    enterRoom: function(id) { Store.state.activeRoomId = id; const r = Store.getActiveRoom(); r.lastUpdated = Date.now(); document.getElementById('lobby-container').style.display = 'none'; document.getElementById('game-container').style.display = 'flex'; history.pushState({ page: 'room' }, ""); this.loadActiveRoom(); Store.forceSave(); },
+    enterRoom: function(id) { Store.state.activeRoomId = id; const r = Store.getActiveRoom(); r.lastUpdated = Date.now(); document.getElementById('lobby-container').style.display = 'none'; document.getElementById('game-container').style.display = 'flex'; this.safePushState({ page: 'room' }, ""); this.loadActiveRoom(); Store.forceSave(); },
     exitToLobby: function() { if(this.isGenerating) return; history.back(); },
     editWorldTemplate: function(id) { Store.state.activeRoomId = null; Store.state.activeWorldId = id; UI.togglePanel('world-panel'); },
 
