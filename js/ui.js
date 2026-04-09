@@ -41,12 +41,9 @@ window.UI = {
         if(id === 'tab-worlds') this.renderWorldTemplateList(); 
     },
     
-    // 🔥 패널 강제 종료 무적 방어 코드
     forceClosePanel: function() {
         if (App.isPanelOpen) {
-            history.back(); // 기본적으로 뒤로가기로 우아하게 닫기 시도
-            
-            // 만약 히스토리가 꼬여서 popstate가 안 먹혔을 경우 강제로 닫는 안전망
+            history.back(); 
             setTimeout(() => {
                 if (App.isPanelOpen) {
                     App.isPanelOpen = false;
@@ -74,7 +71,6 @@ window.UI = {
         if(!document.querySelector('.panel.open')) { document.getElementById('overlay').classList.remove('active'); }
     },
     
-    // 🔥 오버레이 클릭 시 닫힘 처리 수정
     closeOverlay: function() {
         if(this.activeModal) { history.back(); } 
         else if (App.isPanelOpen) { this.forceClosePanel(); }
@@ -595,13 +591,14 @@ window.UI = {
         Store.forceSave();
     },
 
+    // 🔥 변경됨: 이모지가 섞여도 완벽하게 잡아내는 마법의 정규식 적용!
     renderNetworkArchive: function() { 
         const r = Store.getActiveRoom(); 
         let raw = r.networkArchive || "정보가 없습니다. 스캔을 실행하세요.";
         if(raw.includes('스캔 중')) return document.getElementById('network-content').innerHTML = raw;
         
-        let fmt = raw.replace(/\[(.*?)\]/g, (match) => {
-            return `</div></div><div class="net-entry"><span class="net-tag tag-universal">${match}</span><div style="margin-top:10px;">`;
+        let fmt = raw.replace(/^\s*(?:\d+\.\s*)?([^\n\[]*?\[.*?\])/gm, (match, p1) => {
+            return `</div></div><div class="net-entry"><span class="net-tag tag-universal">${p1.trim()}</span><div style="margin-top:8px;">`;
         });
 
         fmt = fmt.replace(/\n[ㄴ└]\s?(.*)/g, '<div class="net-comment">ㄴ $1</div>');
