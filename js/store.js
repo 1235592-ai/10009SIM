@@ -10,24 +10,48 @@ window.Store = {
 
     openDB: function() {
         return new Promise((resolve, reject) => {
-            const req = indexedDB.open('10009SIM_DB', 1);
-            req.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if(!db.objectStoreNames.contains('master')) db.createObjectStore('master', {keyPath: 'id'});
-                if(!db.objectStoreNames.contains('worlds')) db.createObjectStore('worlds', {keyPath: 'id'});
-                if(!db.objectStoreNames.contains('rooms')) db.createObjectStore('rooms', {keyPath: 'id'});
-            };
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
+            try {
+                const req = indexedDB.open('10009SIM_DB', 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if(!db.objectStoreNames.contains('master')) db.createObjectStore('master', {keyPath: 'id'});
+                    if(!db.objectStoreNames.contains('worlds')) db.createObjectStore('worlds', {keyPath: 'id'});
+                    if(!db.objectStoreNames.contains('rooms')) db.createObjectStore('rooms', {keyPath: 'id'});
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null); // 🔥 에러나도 null로 반환하여 스크립트 진행
+            } catch(e) { resolve(null); }
         });
     },
-    dbGet: function(storeName, id) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readonly').objectStore(storeName).get(id); req.onsuccess = () => resolve(req.result); req.onerror = () => resolve(null); }); },
-    dbGetAll: function(storeName) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readonly').objectStore(storeName).getAll(); req.onsuccess = () => resolve(req.result); req.onerror = () => resolve([]); }); },
-    dbPut: function(storeName, item) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readwrite').objectStore(storeName).put(item); req.onsuccess = () => resolve(); req.onerror = () => resolve(); }); },
-    dbDelete: function(storeName, id) { return new Promise(resolve => { const req = this.db.transaction(storeName, 'readwrite').objectStore(storeName).delete(id); req.onsuccess = () => resolve(); req.onerror = () => resolve(); }); },
+    
+    // 🔥 db가 null일 때 앱이 터지지 않도록 완벽 방어
+    dbGet: function(storeName, id) { 
+        return new Promise(resolve => { 
+            if(!this.db) return resolve(null);
+            try { const req = this.db.transaction(storeName, 'readonly').objectStore(storeName).get(id); req.onsuccess = () => resolve(req.result); req.onerror = () => resolve(null); } catch(e){ resolve(null); }
+        }); 
+    },
+    dbGetAll: function(storeName) { 
+        return new Promise(resolve => { 
+            if(!this.db) return resolve([]);
+            try { const req = this.db.transaction(storeName, 'readonly').objectStore(storeName).getAll(); req.onsuccess = () => resolve(req.result); req.onerror = () => resolve([]); } catch(e){ resolve([]); }
+        }); 
+    },
+    dbPut: function(storeName, item) { 
+        return new Promise(resolve => { 
+            if(!this.db) return resolve();
+            try { const req = this.db.transaction(storeName, 'readwrite').objectStore(storeName).put(item); req.onsuccess = () => resolve(); req.onerror = () => resolve(); } catch(e){ resolve(); }
+        }); 
+    },
+    dbDelete: function(storeName, id) { 
+        return new Promise(resolve => { 
+            if(!this.db) return resolve();
+            try { const req = this.db.transaction(storeName, 'readwrite').objectStore(storeName).delete(id); req.onsuccess = () => resolve(); req.onerror = () => resolve(); } catch(e){ resolve(); }
+        }); 
+    },
 
     init: async function() {
-        try { this.db = await this.openDB(); } catch(e) { alert("저장소 초기화 실패. 브라우저 설정(시크릿 모드 등)을 확인하세요."); return; }
+        this.db = await this.openDB();
         
         const master = await this.dbGet('master', 'main');
         if (master) {
