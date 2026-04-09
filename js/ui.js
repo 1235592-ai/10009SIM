@@ -4,6 +4,7 @@ window.UI = {
     lastFocusedCharInput: null,
 
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
+    
     autoResize: function(el) { 
         if (!el) return; 
         el.style.height = '1px'; 
@@ -12,18 +13,44 @@ window.UI = {
         else { el.style.height = el.scrollHeight + 'px'; el.style.overflowY = 'hidden'; }
         if (el.id === 'msg-input') this.scrollToBottom(true); 
     },
+
     scrollToBottom: function(instant = false) { const c = document.getElementById('chat-container'); if(instant) c.scrollTop = c.scrollHeight; else c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }); },
     showToast: function(msg) { const t = document.getElementById('toast-noti'); t.innerText=msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); },
     showAILoader: function(msg) { const ld = document.getElementById('global-ai-loader'); const txt = document.getElementById('loader-msg'); if(ld) { if(txt) txt.innerHTML = msg + '<span class="anim-dots"></span>'; ld.classList.add('show'); } },
     hideAILoader: function() { const ld = document.getElementById('global-ai-loader'); if(ld) ld.classList.remove('show'); },
     switchTab: function(id, e) { document.querySelectorAll('.lobby-tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.lobby-content').forEach(c=>c.classList.remove('active')); e.target.classList.add('active'); document.getElementById(id).classList.add('active'); if(id === 'tab-scenarios') this.renderScenarioList(); if(id === 'tab-worlds') this.renderWorldTemplateList(); },
     
-    openModal: function(id) { this.activeModal = id; document.getElementById(id).style.display = 'block'; document.getElementById('overlay').classList.add('active'); App.safePushState({ modal: id }, ""); },
-    closeModal: function(id) { this.activeModal = null; document.getElementById(id).style.display = 'none'; if(!document.querySelector('.panel.open')) { document.getElementById('overlay').classList.remove('active'); } },
-    closeAllModals: function() { this.activeModal = null; document.querySelectorAll('.modal-base').forEach(m => m.style.display = 'none'); if(!document.querySelector('.panel.open')) { document.getElementById('overlay').classList.remove('active'); } },
-    closeOverlay: function() { if(this.activeModal) { history.back(); } else if (App.isPanelOpen) { history.back(); } },
+    openModal: function(id) { 
+        this.activeModal = id; 
+        document.getElementById(id).style.display = 'block'; 
+        document.getElementById('overlay').classList.add('active'); 
+    },
+    closeModal: function(id) { 
+        this.activeModal = null; 
+        document.getElementById(id).style.display = 'none'; 
+        if(!App.isPanelOpen) { document.getElementById('overlay').classList.remove('active'); } 
+    },
+    
+    // 🔥 X 버튼이나 오버레이 클릭 시 명시적으로 UI를 닫는 메인 함수
+    closeAllPanels: function() {
+        this.syncPanelsBeforeClose();
+        App.isPanelOpen = false;
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
+        document.getElementById('overlay').classList.remove('active');
+        this.lastFocusedWorldInput = null;
+        this.lastFocusedCharInput = null;
+    },
 
-    toggleActionPopover: function() { const pop = document.getElementById('dice-settings-popover'); if(pop.classList.contains('open')) { history.back(); } else { App.safePushState({ popover: true }, ""); this.internalOpenPopover(); } },
+    closeOverlay: function() {
+        if(this.activeModal) { this.closeModal(this.activeModal); } 
+        else if (App.isPanelOpen) { this.closeAllPanels(); }
+    },
+
+    toggleActionPopover: function() {
+        const pop = document.getElementById('dice-settings-popover');
+        if(pop.classList.contains('open')) { this.internalClosePopover(); } 
+        else { this.internalOpenPopover(); }
+    },
     internalOpenPopover: function() { const pop = document.getElementById('dice-settings-popover'); const btn = document.getElementById('btn-action-expand'); pop.classList.add('open'); btn.classList.add('open'); btn.innerText = '✕'; if(window.Dice) window.Dice.refreshDiceUI(); },
     internalClosePopover: function() { const pop = document.getElementById('dice-settings-popover'); const btn = document.getElementById('btn-action-expand'); pop.classList.remove('open'); btn.classList.remove('open'); btn.innerText = '+'; },
 
@@ -31,36 +58,53 @@ window.UI = {
     syncPanelsBeforeClose: function() { if(document.getElementById('world-panel').classList.contains('open')) Store.syncWorldDOM(); if(document.getElementById('char-panel').classList.contains('open')) Store.syncCharDOM(); },
     
     togglePanel: function(id) {
-        if(App.isGenerating) return; this.syncPanelsBeforeClose();
-        const p = document.getElementById(id); const pop = document.getElementById('dice-settings-popover');
-        if(p.classList.contains('open')) { if(App.isPanelOpen) history.back(); } 
-        else {
-            if (pop && pop.classList.contains('open')) { this.internalClosePopover(); App.safeReplaceState({ panel: true }, ""); } 
-            else { if(!App.isPanelOpen) { App.safePushState({ panel: true }, ""); } }
+        if(App.isGenerating) return; 
+        
+        const p = document.getElementById(id);
+        const pop = document.getElementById('dice-settings-popover');
+        
+        if(p.classList.contains('open')) { 
+            this.closeAllPanels(); 
+        } else {
+            if (pop && pop.classList.contains('open')) { this.internalClosePopover(); } 
+            
+            this.closeAllPanels(); // 다른 패널 열려있으면 닫기
             App.isPanelOpen = true;
-            document.querySelectorAll('.panel').forEach(el => el.classList.remove('open')); 
-            p.querySelectorAll('details[open]').forEach(d => { if(d.id !== 'det-basic-settings') d.removeAttribute('open'); });
-            p.classList.add('open'); document.getElementById('overlay').classList.add('active');
+            
+            p.querySelectorAll('details[open]').forEach(d => {
+                if(d.id !== 'det-basic-settings') d.removeAttribute('open');
+            });
+            
+            p.classList.add('open'); 
+            document.getElementById('overlay').classList.add('active');
             
             if(id==='world-panel') { 
                 if(Store.state.activeRoomId) { document.getElementById('world-panel-title').innerText = "🗺️ 인게임 세계 설정"; document.getElementById('btn-free-roam').style.display = 'block'; } 
                 else { document.getElementById('world-panel-title').innerText = "🌌 템플릿 원본 편집"; document.getElementById('btn-free-roam').style.display = 'none'; } 
-                this.lastFocusedWorldInput = null; const mBtn = document.getElementById('magic-btn'); if(mBtn) { mBtn.disabled = true; mBtn.style.opacity = '0.3'; mBtn.style.boxShadow = 'none'; }
+                const mBtn = document.getElementById('magic-btn');
+                if(mBtn) { mBtn.disabled = true; mBtn.style.opacity = '0.3'; mBtn.style.boxShadow = 'none'; }
                 this.renderWorld(); 
             }
             if(id==='char-panel') { 
                 if(!Store.state.activeRoomId) { document.getElementById('h3-my-char').style.display = 'none'; document.getElementById('h3-active-npc').style.display = 'none'; document.getElementById('h3-other-char').innerText = '👥 모든 인물'; } 
                 else { document.getElementById('h3-my-char').style.display = 'block'; document.getElementById('h3-active-npc').style.display = 'block'; document.getElementById('h3-other-char').innerText = '👥 대기 중인 조연'; } 
-                this.lastFocusedCharInput = null; const cBtn = document.getElementById('char-magic-btn'); if(cBtn) { cBtn.disabled = true; cBtn.style.opacity = '0.3'; cBtn.style.boxShadow = 'none'; }
+                const cBtn = document.getElementById('char-magic-btn');
+                if(cBtn) { cBtn.disabled = true; cBtn.style.opacity = '0.3'; cBtn.style.boxShadow = 'none'; }
                 this.renderCharFilter(); this.renderCharacters(); 
             } 
             if(id==='sys-panel') { 
-                const r = Store.getActiveRoom(); const memInput = document.getElementById('room-memory-input'); memInput.value = r.memory || ''; const statInput = document.getElementById('global-status-input'); statInput.value = r.globalStatus || ''; const sel = document.getElementById('network-preset-sel'); if(sel) { sel.value = r.networkPreset || 'modern'; this.toggleCustomNet(sel.value); }
-                this.renderNetworkArchive(); setTimeout(() => {this.autoResize(memInput); this.autoResize(statInput);}, 10); 
+                const r = Store.getActiveRoom();
+                const memInput = document.getElementById('room-memory-input'); memInput.value = r.memory || ''; 
+                const statInput = document.getElementById('global-status-input'); statInput.value = r.globalStatus || ''; 
+                const sel = document.getElementById('network-preset-sel');
+                if(sel) { sel.value = r.networkPreset || 'modern'; this.toggleCustomNet(sel.value); }
+                this.renderNetworkArchive(); 
+                setTimeout(() => {this.autoResize(memInput); this.autoResize(statInput);}, 10); 
             } 
         }
     },
 
+    // ---------- 아래부터는 이전과 동일한 렌더링 함수들입니다 ----------
     renderSafetyUI: function() {
         const container = document.getElementById('safety-checks'); if(!container) return;
         const labels = { violence: "폭력 및 유혈", discrimination: "혐오 및 차별", sexual: "성적 표현", abuse: "학대 묘사", selfharm: "자해 및 자살", drugs: "음주 및 약물", marysue: "과잉 찬양", obsession: "소유욕 및 집착", gore: "공포 및 기괴함", romance: "로맨스 전개" };
@@ -71,7 +115,8 @@ window.UI = {
     },
 
     renderScenarioList: function() {
-        let filter = document.getElementById('lobby-room-filter').value; if (!filter) filter = 'all'; 
+        let filter = document.getElementById('lobby-room-filter').value;
+        if (!filter) filter = 'all'; 
         const sortedRooms = [...Store.state.rooms].sort((a,b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
         document.getElementById('scenario-list').innerHTML = sortedRooms.map((r, idx) => {
             if(filter !== 'all' && !r.tagIds.includes(filter)) return ''; const isRecent = idx === 0 && r.lastUpdated;
@@ -87,17 +132,25 @@ window.UI = {
     },
     
     renderKeywords: function() {
-        const w = Store.getTargetWorld(); const area = document.getElementById('w-keyword-list');
-        if(!area || !w) return; if(!w.keywords) w.keywords = [];
+        const w = Store.getTargetWorld();
+        const area = document.getElementById('w-keyword-list');
+        if(!area || !w) return;
+        if(!w.keywords) w.keywords = [];
         area.innerHTML = w.keywords.map(k => `<span class="k-chip">#${this.esc(k)} <button tabindex="-1" onclick="Store.removeKeyword('${k}')">×</button></span>`).join('');
     },
 
     renderWorld: function() {
         const w = Store.getTargetWorld(); if(!w) return;
-        const panel = document.getElementById('world-panel'); const st = panel ? panel.scrollTop : 0; 
-        let openState = []; if (panel && panel.classList.contains('open')) { panel.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); }); }
+        const panel = document.getElementById('world-panel');
+        const st = panel ? panel.scrollTop : 0; 
+        let openState = [];
+        if (panel && panel.classList.contains('open')) { panel.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); }); }
+
         this.renderKeywords();
-        const wnEl = document.getElementById('w-n'); if(wnEl) wnEl.value = w.name || ''; const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; const wurlEl = document.getElementById('w-url'); if(wurlEl) wurlEl.value = w.bgUrl || '';
+
+        const wnEl = document.getElementById('w-n'); if(wnEl) wnEl.value = w.name || ''; 
+        const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; 
+        const wurlEl = document.getElementById('w-url'); if(wurlEl) wurlEl.value = w.bgUrl || '';
         
         const facList = document.getElementById('world-factions-list');
         if(facList) facList.innerHTML = w.factions.map(f => `<details class="item-card card-faction" id="det-f-${f.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))"><summary>${this.esc(f.name) || '새 세력'}</summary><div style="margin-top:15px;"><input type="text" class="input-std" id="f-n-${f.id}" value="${this.esc(f.name)}" placeholder="세력명"><textarea class="area-std auto-resize" id="f-d-${f.id}" placeholder="특징" oninput="UI.autoResize(this);">${this.esc(f.desc)}</textarea><span class="secret-label">🔒 세력 비밀</span><textarea class="area-std auto-resize" id="f-s-${f.id}" oninput="UI.autoResize(this);">${this.esc(f.secret)}</textarea><button class="btn-danger" onclick="Store.delWorldItem('f','${f.id}', event)">이 세력 삭제</button></div></details>`).join('');
@@ -125,9 +178,15 @@ window.UI = {
         const hasContent = w.name || w.prompt || w.factions.length > 0 || w.lores.length > 0 || w.locations.length > 0;
         const sketchBtn = document.getElementById('btn-world-sketch');
         if(sketchBtn) {
-            if(hasContent) { sketchBtn.innerHTML = '🔄 세계관 다시 스케치하기 (덮어쓰기)'; sketchBtn.style.background = '#b91c1c'; } 
-            else { sketchBtn.innerHTML = '✨ 세계관 초안 스케치'; sketchBtn.style.background = '#8b5cf6'; }
+            if(hasContent) {
+                sketchBtn.innerHTML = '🔄 세계관 다시 스케치하기 (덮어쓰기)';
+                sketchBtn.style.background = '#b91c1c';
+            } else {
+                sketchBtn.innerHTML = '✨ 세계관 초안 스케치';
+                sketchBtn.style.background = '#8b5cf6';
+            }
         }
+
         openState.forEach(id => { const el = document.getElementById(id); if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } });
         if(panel) panel.scrollTop = st; 
     },
@@ -144,39 +203,24 @@ window.UI = {
         return `<details class="item-card card-char ${isMy?'my-char':''} ${isNpc?'active-npc':''} ${c.isHidden?'hidden':''}" id="det-c-${c.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))"><summary><div style="display:flex; align-items:center;">${this.esc(c.keyword) || '새 인물'} ${roleTag}</div></summary><div style="margin-top:15px;"><div style="display:flex; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:10px;"><div style="display:flex; gap:8px;">${r && !isMy ? `<button onclick="Store.setMyChar('${c.id}')" class="btn-ghost" style="margin:0; padding:6px 10px; font-size:0.75rem;">🙋‍♂️ 내 캐릭터 지정</button>` : ''}${r && !isMy ? `<button onclick="Store.toggleActiveNpc('${c.id}')" class="btn-ghost" style="margin:0; padding:6px 10px; font-size:0.75rem; border-color:${isNpc?'#10b981':'#444'}; color:${isNpc?'#10b981':'#aaa'};">${isNpc?'🗣️ 주연 해제':'🗣️ 주연 추가'}</button>` : ''}</div><label style="font-size:0.85rem; color:#aaa; cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" ${c.isHidden?'checked':''} onchange="Store.toggleHidden('${c.id}')"> 👁️ 숨김</label></div><input type="text" class="input-std" id="c-n-${c.id}" value="${this.esc(c.keyword)}" placeholder="이름" ${c.id==='sys'?'readonly':''}>${c.id!=='sys' ? `<div style="font-size:0.8rem; color:#888; margin-bottom:6px;">소속 세력:</div><div id="c-f-tags-${c.id}" class="tag-area"></div><input type="hidden" id="c-f-hid-${c.id}" value="${c.factionIds.join(',')}"><select class="select-std" style="margin-bottom:12px;" onchange="Store.addFacTag('${c.id}', this)"><option value="">+ 세력 추가...</option>${w.factions.map(fac=>`<option value="${fac.id}">${this.esc(fac.name)}</option>`).join('')}</select><select class="select-std" style="margin-bottom:12px;" id="c-trig-${c.id}">${locOpts}</select>` : ''}<textarea class="area-std auto-resize" id="c-d-${c.id}" placeholder="설명 (외관, 성격, 능력 등)" oninput="UI.autoResize(this);">${this.esc(c.desc)}</textarea><span class="secret-label" style="margin-top:10px;">🔒 인물 비밀</span><textarea class="area-std auto-resize" id="c-s-${c.id}" placeholder="숨겨진 흑막이나 모티브" oninput="UI.autoResize(this);">${this.esc(c.secret)}</textarea><div style="margin-top:15px; border-top:1px dashed #333; padding-top:20px;"><span style="font-size:0.9rem; font-weight:bold; color:#fbbf24; margin-bottom:10px; display:inline-block;">📊 스탯</span><div>${statHtml}</div><button class="btn-ghost" style="padding:10px; font-size:0.85rem; margin-top:5px;" onclick="Store.addStat('${c.id}')">+ 빈 스탯 추가</button></div><details class="acc-sec" id="det-c-rep-${c.id}" style="margin-top:20px; padding:15px; background:rgba(255,255,255,0.02); border:1px solid #333;"><summary style="font-size:0.9rem; color:#a78bfa; padding-bottom:0; border:none; background:transparent;">⚖️ 평판 및 성향</summary><div style="margin-top:15px;">${repHtml}<button class="btn-ghost" style="padding:10px; font-size:0.85rem; margin:0;" onclick="Store.addRep('${c.id}')">+ 빈 성향 축 추가</button></div></details>${c.id!=='sys' ? `<button class="btn-danger" style="margin-top:25px; padding:12px; font-size:0.9rem;" onclick="Store.delChar('${c.id}')">인물 완전 삭제</button>` : ''}</div></details>`;
     },
     
-    renderCharacters: function() {
-        const w = Store.getTargetWorld(); const r = Store.state.activeRoomId ? Store.getActiveRoom() : null; const filterVal = document.getElementById('char-filter-sel').value;
-        const filterFn = c => { if(filterVal === 'all') return true; if(filterVal === 'none') return !c.factionIds || c.factionIds.length === 0; return c.factionIds.includes(filterVal); };
-        
-        const panel = document.getElementById('char-panel'); const st = panel ? panel.scrollTop : 0; 
-        let openState = []; if (panel && panel.classList.contains('open')) { panel.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); }); }
-
-        if(r) {
-            const my = w.characters.find(c=>c.id===r.myCharId); const act = w.characters.filter(c=>r.activeCharIds.includes(c.id) && c.id!==r.myCharId && c.id!=='sys' && filterFn(c)); const oth = w.characters.filter(c=>!r.activeCharIds.includes(c.id) && c.id!==r.myCharId && c.id!=='sys' && filterFn(c));
-            document.getElementById('char-my-area').innerHTML = my && filterFn(my) ? this.buildCharHTML(my, true, false, w) : ''; document.getElementById('char-active-area').innerHTML = act.map(c=>this.buildCharHTML(c, false, true, w)).join(''); document.getElementById('char-other-area').innerHTML = oth.map(c=>this.buildCharHTML(c, false, false, w)).join('');
-        } else {
-            const oth = w.characters.filter(c=>c.id!=='sys' && filterFn(c)); document.getElementById('char-my-area').innerHTML = ''; document.getElementById('char-active-area').innerHTML = ''; document.getElementById('char-other-area').innerHTML = oth.map(c=>this.buildCharHTML(c, false, false, w)).join('');
-        }
-        w.characters.forEach(c => { if(c.id !== 'sys') this.renderFacTags(c.id); });
-        openState.forEach(id => { const el = document.getElementById(id); if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } });
-        if(panel) panel.scrollTop = st; 
-    },
-    
-    renderFacTags: function(cId) { const hid = document.getElementById(`c-f-hid-${cId}`); const area = document.getElementById(`c-f-tags-${cId}`); if(!hid || !area) return; const fIds = hid.value ? hid.value.split(',') : []; const w = Store.getTargetWorld(); area.innerHTML = fIds.map(fId => { const fac = w.factions.find(f => f.id === fId); return fac ? `<span class="fac-tag">${this.esc(fac.name)} <button type="button" onclick="Store.removeFacTag('${cId}', '${fId}')">×</button></span>` : ''; }).join(''); },
-
-    openNewRoomModal: function() { 
-        const nameEl = document.getElementById('new-room-name'); if(nameEl) nameEl.value = ''; 
-        const opts = Store.state.worlds.map(w => `<option value="${w.id}">${this.esc(w.name)}</option>`).join('');
-        const selEl = document.getElementById('new-room-world-sel'); if(selEl) selEl.innerHTML = opts || `<option value="" disabled selected>세계관 없음</option>`;
-        this.openModal('new-room-modal'); 
-    },
-    openImportModal: function() { document.getElementById('import-world-sel').innerHTML = `<option value="">세계관 원본 선택...</option>` + Store.state.worlds.map(w=>`<option value="${w.id}">${this.esc(w.name)}</option>`).join(''); document.getElementById('import-char-list').innerHTML = ''; this.openModal('import-modal'); },
     renderImportChars: function() { const wId = document.getElementById('import-world-sel').value; const list = document.getElementById('import-char-list'); if(!wId) return list.innerHTML = ''; const tr = Store.state.worlds.find(w=>w.id===wId); list.innerHTML = tr.characters.filter(c=>c.id!=='sys').map(c => `<div style="background:#111; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; font-size:1.05rem;">${this.esc(c.keyword)}</span><button class="btn-play" style="padding:6px 12px; margin:0; width:auto; min-height:auto;" onclick="App.importChar('${wId}', '${c.id}')">가져오기</button></div>`).join(''); },
-    openTagModal: function() { this.renderTagManageList(); this.openModal('tag-manage-modal'); },
+    
     renderTagManageList: function() { const list = document.getElementById('tag-manage-list'); if(Store.state.roomTags.length === 0) return list.innerHTML = '<p style="color:#888; font-size:0.9rem;">생성된 태그가 없습니다.</p>'; list.innerHTML = Store.state.roomTags.map(t => `<div style="background:#111; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #333;"><input type="text" class="input-std" style="margin:0; width:70%; padding:8px;" value="${this.esc(t.name)}" onchange="App.updateRoomTag('${t.id}', this.value)"><button class="btn-danger" style="margin:0; width:auto; padding:8px 12px;" onclick="App.deleteRoomTag('${t.id}')">삭제</button></div>`).join(''); },
 
+    renderNetworkArchive: function() { 
+        const r = Store.getActiveRoom(); 
+        let raw = r.networkArchive || "정보가 없습니다. 스캔을 실행하세요.";
+        if(raw.includes('스캔 중')) return document.getElementById('network-content').innerHTML = raw;
+        
+        let fmt = raw.replace(/\[(.*?)\]/g, (match) => { return `</div></div><div class="net-entry"><span class="net-tag tag-universal">${match}</span><div style="margin-top:10px;">`; });
+        fmt = fmt.replace(/\n[ㄴ└]\s?(.*)/g, '<div class="net-comment">ㄴ $1</div>');
+        fmt = fmt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
+        
+        if(fmt.startsWith('</div></div>')) fmt = fmt.substring(12);
+        document.getElementById('network-content').innerHTML = fmt + (fmt.includes('net-entry') ? '</div></div>' : ''); 
+    },
+
     updateActionBtn: function() { const val = document.getElementById('msg-input').value.trim(); const btn = document.getElementById('action-btn'); if(val) { btn.innerText = "전송"; btn.style.background = "var(--accent-color)"; } else { btn.innerText = "▶ 진행"; btn.style.background = "#059669"; } },
-    
     appendMessageDOM: function(m, idx) {
         const r = Store.getActiveRoom(); const w = r.worldInstance; const container = document.getElementById('chat-container'); const d = document.createElement('div'); d.className = `message ${m.role}`; d.setAttribute('data-idx', idx);
         if(m.role === 'user') { const speaker = document.createElement('div'); speaker.className = 'speaker-name'; const myC = w.characters.find(c=>c.id===r.myCharId); speaker.innerText = myC ? myC.keyword : 'USER'; d.appendChild(speaker); }
@@ -210,26 +254,6 @@ window.UI = {
         sBtn.onclick = () => { if(!confirm("수정하시겠습니까?")) return; if(editArea.value.trim()){ m.variants[m.currentVariant] = editArea.value; Store.forceSave(); App.loadActiveRoom(true); } };
         cBtn.onclick = () => { App.loadActiveRoom(true); }; 
         btnWrap.append(sBtn, cBtn); msgDiv.append(editArea, btnWrap); setTimeout(() => this.autoResize(editArea), 10);
-    },
-
-    toggleCustomNet: function(val) {
-        const el = document.getElementById('custom-net-input');
-        if(el) el.style.display = (val === 'custom') ? 'block' : 'none';
-        Store.updateRoomState('networkPreset', val);
-        Store.forceSave();
-    },
-
-    renderNetworkArchive: function() { 
-        const r = Store.getActiveRoom(); 
-        let raw = r.networkArchive || "정보가 없습니다. 스캔을 실행하세요.";
-        if(raw.includes('스캔 중')) return document.getElementById('network-content').innerHTML = raw;
-        
-        let fmt = raw.replace(/\[(.*?)\]/g, (match) => { return `</div></div><div class="net-entry"><span class="net-tag tag-universal">${match}</span><div style="margin-top:10px;">`; });
-        fmt = fmt.replace(/\n[ㄴ└]\s?(.*)/g, '<div class="net-comment">ㄴ $1</div>');
-        fmt = fmt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
-        
-        if(fmt.startsWith('</div></div>')) fmt = fmt.substring(12);
-        document.getElementById('network-content').innerHTML = fmt + (fmt.includes('net-entry') ? '</div></div>' : ''); 
     },
     
     editNetwork: function(isEdit = true) {
