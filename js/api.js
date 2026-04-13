@@ -1,7 +1,16 @@
 window.API = {
     streamGemini: async function(contents, sysText, onChunk) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${Store.state.modelName}:streamGenerateContent?key=${Store.state.apiKey}&alt=sse`;
-        const body = { contents, safetySettings: [ { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" } ], generationConfig: { temperature: 0.85 } };
+        const body = { 
+            contents, 
+            safetySettings: [ 
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }, 
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" }, 
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }, 
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" } 
+            ], 
+            generationConfig: { temperature: 0.85 } 
+        };
         if(sysText) body.system_instruction = { parts: [{ text: sysText }] };
         
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -23,7 +32,19 @@ window.API = {
 
     callGemini: async function(contents, sysText, options={}) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${Store.state.modelName}:generateContent?key=${Store.state.apiKey}`;
-        const body = { contents, safetySettings: [ { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" } ], generationConfig: { temperature: options.temp || 0.85, responseMimeType: options.jsonMode ? "application/json" : "text/plain" } };
+        const body = { 
+            contents, 
+            safetySettings: [ 
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }, 
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" }, 
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }, 
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" } 
+            ], 
+            generationConfig: { 
+                temperature: options.temp || 0.85, 
+                responseMimeType: options.jsonMode ? "application/json" : "text/plain" 
+            } 
+        };
         if(sysText) body.system_instruction = { parts: [{ text: sysText }] };
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if(!res.ok) throw new Error("API 연동 실패"); const data = await res.json();
@@ -109,7 +130,7 @@ window.API = {
     },
 
     generateCharacter: async function(worldData) {
-        const p = `다음 세계관 설정을 바탕으로, 이 세계에 자연스럽게 녹아드는 매력적이고 입체적인 새로운 인물 1명을 창작해라. 오직 JSON 객체만 반환할 것.\n\n[세계관 정보]\n- 세계관 이름: ${worldData.name}\n- 핵심 키워드: [${worldData.keywords.join(', ')}]\n- 세계관 배경 요약: ${worldData.prompt}\n- 존재하는 세력들: ${worldData.factions.map(f => f.name).join(', ') || '없음'}\n\n[출력 포맷 및 지시사항 (반드시 JSON)]\n{\n  "keyword": "인물 이름 (또는 이명)",\n  "desc": "인물의 외형, 성격, 과거사, 그리고 현재의 목적 (300자 이상 아주 구체적으로)",\n  "secret": "이 인물이 남들에게 숨기고 있는 치명적인 비밀이나 약점 (100자 내외)",\n  "stats": [\n    {"n": "주요 스탯1 (세계관에 어울리는 능력치명, 예: 무력, 지력, 해킹 등)", "v": 10~100 사이 숫자},\n    {"n": "주요 스탯2", "v": 10~100 사이 숫자},\n    {"n": "주요 스탯3", "v": 10~100 사이 숫자}\n  ]\n}\n※ 스탯은 반드시 세계관 분위기에 맞는 이름으로 3개 생성할 것.`;
+        const p = `다음 세계관 설정을 바탕으로, 이 세계에 자연스럽게 녹아드는 매력적이고 입체적인 새로운 인물 1명을 창작해라. 오직 JSON 객체만 반환할 것.\n\n[세계관 정보]\n- 세계관 이름: ${worldData.name}\n- 핵심 키워드: [${worldData.keywords.join(', ')}]\n- 세계관 배경 요약: ${worldData.prompt}\n- 존재하는 세력들: ${worldData.factions.map(f => f.name).join(', ') || '없음'}\n\n[출력 포맷 및 지시사항 (반드시 JSON)]\n{\n  "keyword": "인물 이름 (반드시 세계관의 국적, 배경, 장르에 완벽하게 어울리는 세련된 이름. '김철수', '이영희' 등 촌스럽거나 작위적인 기본 이름 절대 금지)",\n  "desc": "인물의 외형, 성격, 과거사, 그리고 현재의 목적 (300자 이상 아주 구체적으로)",\n  "secret": "이 인물이 남들에게 숨기고 있는 치명적인 비밀이나 약점 (100자 내외)",\n  "stats": [\n    {"n": "주요 스탯1 (세계관에 어울리는 능력치명, 예: 무력, 지력, 해킹 등)", "v": 10~100 사이 숫자},\n    {"n": "주요 스탯2", "v": 10~100 사이 숫자},\n    {"n": "주요 스탯3", "v": 10~100 사이 숫자}\n  ]\n}\n※ 스탯은 반드시 세계관 분위기에 맞는 이름으로 3개 생성할 것.`;
         const text = await this.callGemini([{role:'user', parts:[{text: p}]}], "당신은 세계관에 완벽히 어울리는 입체적인 캐릭터를 창조하는 마스터.", {temp: 0.9, jsonMode: true});
         return this.parseAIJsonRaw(text);
     },
@@ -117,7 +138,6 @@ window.API = {
     statToDesc: function(val) { if(val >= 90) return "초인"; if(val >= 80) return "전문가"; if(val >= 70) return "우수"; if(val >= 60) return "양호"; if(val >= 40) return "보통"; if(val >= 20) return "미숙"; return "최악"; },
     repToDesc: function(val, left, right) { if(val === 0) return "중립"; const side = val < 0 ? left : right; const absVal = Math.abs(val); if(absVal <= 2) return `${side} 약간`; if(absVal <= 4) return `${side} 강함`; return `${side} 극단적`; },
 
-    // 🔥 완벽하게 재구성된 AI 프롬프트 빌더 (블록형 데이터 및 소속 세력 자동 추출)
     buildPrompt: function(r, scan) {
         const w = r.worldInstance; const loc = w.locations[r.currentLocIdx]; let reg = null; if(loc && loc.regionId) reg = w.regions.find(rg => rg.id === loc.regionId);
         const activeNpcs = r.activeCharIds.map(id => w.characters.find(c=>c.id===id)).filter(c=>c&&c.id!=='sys'); const myChar = w.characters.find(c=>c.id===r.myCharId) || {keyword:'플레이어', desc:''};
@@ -126,107 +146,116 @@ window.API = {
         const myReps = myChar.reputation && myChar.reputation.length ? myChar.reputation.map(rep => `${rep.leftName||'L'}↔${rep.rightName||'R'}(${this.repToDesc(rep.value, rep.leftName||'L', rep.rightName||'R')})`).join(', ') : ''; 
         let gStatus = r.globalStatus && r.globalStatus.trim() ? `\n[🚨 절대 서사 규칙]\n${r.globalStatus.trim()}\n` : '';
         
-        // 1. 내 캐릭터 데이터 구조화 (줄바꿈 포맷) 및 세력 수집
-        let myFNames = [];
-        let activeFactionIds = new Set(); // 현재 씬에 등장하는 모든 인물의 세력을 모아둘 바구니
+        let activeFactionIds = new Set();
+        if (myChar.factionIds) myChar.factionIds.forEach(fid => activeFactionIds.add(fid));
         
-        if (myChar.factionIds) {
-            myChar.factionIds.forEach(fid => {
-                activeFactionIds.add(fid);
-                const fac = w.factions.find(f=>f.id===fid);
-                if(fac && fac.name?.trim()) myFNames.push(fac.name.trim());
-            });
+        let myBlock = `<MyCharacter name="${myChar.keyword}">\n`;
+        if (myChar.factionIds && myChar.factionIds.length > 0) {
+            const fNames = myChar.factionIds.map(fid => w.factions.find(f=>f.id===fid)?.name).filter(n=>n);
+            myBlock += `  <Faction>${fNames.join(', ')}</Faction>\n`;
         }
-        
-        let myBlock = `[내 캐릭터: ${myChar.keyword}]`;
-        if(myFNames.length > 0) myBlock += `\n- 소속: ${myFNames.join(', ')}`;
-        if(myChar.desc?.trim()) myBlock += `\n- 설명: ${myChar.desc.trim()}`;
-        if(myChar.secret?.trim()) myBlock += `\n- 비밀: ${myChar.secret.trim()}`;
-        if(myStats) myBlock += `\n- 스탯: ${myStats}`;
-        if(myReps) myBlock += `\n- 성향: ${myReps}`;
+        if(myChar.desc?.trim()) myBlock += `  <Description>${myChar.desc.trim()}</Description>\n`;
+        if(myChar.secret?.trim()) myBlock += `  <Secret>${myChar.secret.trim()}</Secret>\n`;
+        if(myStats) myBlock += `  <Stats>${myStats}</Stats>\n`;
+        if(myReps) myBlock += `  <Reputation>${myReps}</Reputation>\n`;
+        myBlock += `</MyCharacter>`;
 
-        let p = `당신은 해당 장르에 정통한 베테랑 작가이자 압도적인 몰입감을 선사하는 TRPG 마스터입니다. 섬세하고 감각적인 묘사, 입체적인 캐릭터, 클리셰를 비트는 전개로 장르적 쾌감을 극대화하십시오.\n[OOC(Out of Character) 절대 금지] 당신은 AI가 아니라 이 세계 그 자체입니다. "AI로서", "저는 ~할 수 없습니다", "이 시뮬레이션은" 같은 메타 발언 및 자기 언급을 절대 금지합니다.${gStatus}\n[세계관] ${w.prompt}\n\n${myBlock}\n`;
-        
-        // 2. 참여 NPC 데이터 구조화 (줄바꿈 포맷) 및 세력 수집
+        let npcBlocks = "";
         if(activeNpcs.length > 0) { 
-            const npcNames = activeNpcs.map(c => c.keyword).join(', '); 
-            const npcBlocks = activeNpcs.map(c => { 
+            npcBlocks = activeNpcs.map(c => { 
+                if (c.factionIds) c.factionIds.forEach(fid => activeFactionIds.add(fid));
                 const sText = c.stats && c.stats.length ? c.stats.filter(s=>s.active!==false).map(s=>`${s.n}(${this.statToDesc(s.v)})`).join(', ') : ''; 
-                let fNames = [];
-                if (c.factionIds) {
-                    c.factionIds.forEach(fid => { 
-                        activeFactionIds.add(fid); // 이 NPC의 소속도 글로벌 세력 수집함에 추가!
-                        const fac = w.factions.find(f=>f.id===fid); 
-                        if(fac && fac.name?.trim()) fNames.push(fac.name.trim()); 
-                    });
-                }
-                
-                let block = `[NPC: ${c.keyword}]`;
-                if(fNames.length > 0) block += `\n- 소속: ${fNames.join(', ')}`;
-                if(c.desc?.trim()) block += `\n- 설명: ${c.desc.trim()}`;
-                if(c.secret?.trim()) block += `\n- 비밀: ${c.secret.trim()}`;
-                if(sText) block += `\n- 스탯: ${sText}`;
-                return block;
-            }).join('\n\n'); 
-            p += `\n[참여 NPC 목록: ${npcNames}]\n${npcBlocks}\n\n*위 NPC들이 주도적으로 반응하게 하세요.*\n`; 
+                const fNames = c.factionIds ? c.factionIds.map(fid => w.factions.find(f=>f.id===fid)?.name).filter(n=>n) : [];
+                let b = `<NPC name="${c.keyword}">\n`;
+                if(fNames.length > 0) b += `  <Faction>${fNames.join(', ')}</Faction>\n`;
+                if(c.desc?.trim()) b += `  <Description>${c.desc.trim()}</Description>\n`;
+                if(c.secret?.trim()) b += `  <Secret>${c.secret.trim()}</Secret>\n`;
+                if(sText) b += `  <Stats>${sText}</Stats>\n`;
+                b += `</NPC>`;
+                return b;
+            }).join('\n'); 
         }
 
-        // 3. 수집된 소속 세력의 상세 정보 글로벌 인젝션 (AI가 "아, 이 소속은 이런 비밀이 있구나"를 깨달음)
+        let facBlocks = "";
         if(activeFactionIds.size > 0) {
-            let facBlocks = [];
-            activeFactionIds.forEach(fid => {
+            facBlocks = Array.from(activeFactionIds).map(fid => {
                 const fac = w.factions.find(f => f.id === fid);
-                if(fac) {
-                    let fb = `[세력: ${fac.name}]`;
-                    if(fac.desc?.trim()) fb += `\n- 설명: ${fac.desc.trim()}`;
-                    if(fac.secret?.trim()) fb += `\n- 비밀: ${fac.secret.trim()}`;
-                    facBlocks.push(fb);
-                }
-            });
-            if(facBlocks.length > 0) {
-                p += `\n[관련 소속 세력 정보]\n${facBlocks.join('\n\n')}\n`;
-            }
+                if(!fac) return "";
+                let fb = `<FactionData name="${fac.name}">\n`;
+                if(fac.desc?.trim()) fb += `  <Description>${fac.desc.trim()}</Description>\n`;
+                if(fac.secret?.trim()) fb += `  <Secret>${fac.secret.trim()}</Secret>\n`;
+                fb += `</FactionData>`;
+                return fb;
+            }).filter(x=>x).join('\n');
         }
+
+        let surroundingNpcs = w.characters
+            .filter(c => !r.activeCharIds.includes(c.id) && c.id !== r.myCharId && c.id !== 'sys' && !c.isHidden)
+            .filter(c => !c.triggerLocId || (loc && c.triggerLocId === loc.id))
+            .map(c => `<PotentialNPC name="${c.keyword}">${c.desc}</PotentialNPC>`)
+            .join('\n');
+
+        let p = `당신은 해당 장르에 정통한 베테랑 작가이자 압도적인 몰입감을 선사하는 TRPG 마스터입니다. 섬세하고 감각적인 묘사, 입체적인 캐릭터, 클리셰를 비트는 전개로 장르적 쾌감을 극대화하십시오.
+[OOC 절대 금지] 당신은 AI가 아니라 이 세계 그 자체입니다. "AI로서", "저는 ~할 수 없습니다" 등 메타 발언을 절대 금지합니다.
+[⚠️ 인과관계 닻 고정] 아래 <Timeline>에 기재된 과거 사건은 불변의 진실입니다. 이와 모순되거나 양립할 수 없는 새로운 사건을 임의로 날조하지 마십시오.
+
+[세계관 배경] ${w.prompt}
+${gStatus}
+
+[등장 요소 데이터]
+${myBlock}
+${npcBlocks}
+${facBlocks}
+
+[주변 대기 인물군] (조건부 난입 가능)
+${surroundingNpcs}
+
+`;
         
-        if(loc) p += `\n[장소: ${reg?reg.name+' - ':''}${loc.name}]${loc.desc?.trim() ? ' (특징: '+loc.desc.trim()+')' : ''}\n`;
-        let mem = r.memory || ""; const memBlocks = mem.split('[자동 요약]'); let memToSend = memBlocks[0]; if (memBlocks.length > 1) { memToSend += '[자동 요약]' + memBlocks.slice(Math.max(1, memBlocks.length - 2)).join('[자동 요약]'); } if(memToSend.trim()) p += `[상황 기억]\n${memToSend.trim()}\n`;
+        if(loc) p += `[현재 장소: ${reg?reg.name+' - ':''}${loc.name}]${loc.desc?.trim() ? ' (특징: '+loc.desc.trim()+')' : ''}\n`;
         
-        // 대기 요소는 활성화된 세력(activeFactionIds)과 겹치지 않게 중복 방지 처리
+        let mem = r.memory || ""; 
+        const memBlocks = mem.split('[자동 요약]'); 
+        let memToSend = memBlocks[0]; 
+        if (memBlocks.length > 1) { memToSend += '[자동 요약]' + memBlocks.slice(Math.max(1, memBlocks.length - 2)).join('[자동 요약]'); } 
+        
+        if(memToSend.trim()) p += `<Timeline>\n${memToSend.trim()}\n</Timeline>\n`;
+        
         const info = []; 
-        w.characters.forEach(c => { if(c.isHidden || c.id === r.myCharId || c.id === 'sys') return; if(c.triggerLocId && loc && c.triggerLocId !== loc.id) return; if(c.keyword && scan.includes(c.keyword) && !r.activeCharIds.includes(c.id)) info.push(`- ${c.keyword}: ${c.desc}`); }); 
         w.factions.forEach(f => { if(f.name && scan.includes(f.name) && !activeFactionIds.has(f.id)) info.push(`- 세력 ${f.name}: ${f.desc}`); }); 
         w.lores.forEach(l => { if(l.triggerLocId && loc && l.triggerLocId !== loc.id) return; if(l.keyword && scan.includes(l.keyword)) info.push(`- 지식 ${l.keyword}: ${l.desc}`); }); 
-        if(info.length) p += `\n[언급된 대기 요소]\n${info.join("\n")}\n`;
+        if(info.length) p += `[주변 대기 요소]\n${info.join("\n")}\n`;
         
         if(scan.includes('🎲') || scan.includes('⚔️')) p += `\n*주의: 주사위 판정 결과를 바탕으로 연출하세요.*\n`;
         
         const isLong = document.getElementById('long-response')?.checked;
         
-        p += `\n\n[✍️ 마스터 서술 절대 규칙]\n`;
-        p += `- ⚠️ [대리 묘사 절대 금지] 플레이어(${myChar.keyword})의 대사, 감정, 행동은 단 1%도 대리 묘사 불가. 오직 NPC와 세계의 반응만 서술할 것.\n`;
-        p += `- [능동적 세계] NPC와 세계는 플레이어를 기다리지 않습니다. 먼저 행동하고, 의제를 던지고, 침묵하거나 속이며 능동적으로 상황을 주도하십시오.\n`;
-        p += `- [감각 디테일 강제] 시각 외에 최소 하나 이상의 다른 감각(소리, 냄새, 촉각, 온도, 공기의 무게 등)을 반드시 묘사에 포함하십시오.\n`;
-        p += `- [페이싱 제어] 모든 장면을 같은 속도로 쓰지 마십시오. 긴장된 순간은 짧고 파편적인 문장으로 호흡을 조이고, 평온한 순간은 길고 유려한 문장으로 이완하십시오.\n`;
-        p += `- [NPC 변별력] 각 NPC는 고유한 말투, 어휘, 문장 길이, 호흡을 가집니다. 지문 없이 대사만으로도 누구인지 명확히 식별 가능해야 합니다.\n`;
-        p += `- [AI 억양 & 클리셰 금지] 설명조의 서술, "~것이었다", "~듯했다", "심장이 쿵 내려앉았다" 등 진부한 표현 엄격히 금지. 직전 응답에서 사용한 형용사·부사·비유나 특정 행동(한숨, 미소 등)을 의식적으로 피하십시오.\n`;
-        p += `- [시간 흐름 명시] 흥미롭지 않은 이동·대기 시간은 한 문장으로 압축하거나 과감히 생략하고 핵심 사건으로 도약하십시오.\n`;
-        p += `- [묘사/대사 균형] 대사와 지문(행동·환경 묘사)의 비율을 균형 있게 유지하십시오. 대사 사이에는 반드시 행동이나 환경 변화를 끼워 넣으십시오. 대사 형식: "이름: 대사" (따옴표 제외)\n`;
-        p += `- [클리프행어 지향] 매 응답의 끝은 상황을 온전히 정리하지 말고, 플레이어가 즉각 반응하고 싶어지는 긴장이나 호기심을 남긴 채 끊으십시오.\n`;
-        p += `- [출력 분량] ${isLong ? "**1500자 이상 아주 길고 구체적으로, 문학적인 밀도를 꽉 채워서 묘사할 것.**" : "**500자 내외로 속도감 있고 밀도 있게 서술할 것.**"}`; 
+        // 🔥 변경됨: 개연성을 고려한 등장 조건 쐐기 추가
+        p += `\n\n[✍️ 마스터 서술 절대 규칙]
+- ⚠️ [대리 묘사 금지] 플레이어(${myChar.keyword})의 감정, 행동, 대사는 단 1%도 대리 서술하지 마십시오. 오직 세계의 반응만 서술합니다.
+- [능동적 세계] NPC는 플레이어를 기다리지 않으며 속마음을 투명하게 드러내지 않습니다. 먼저 행동하고, 의제를 던지고, 상황을 주도하십시오.
+- 🎭 [개연성 기반 등장] [주변 대기 인물군]은 현재 장소나 문맥상 얽히는 것이 논리적으로 자연스러울 때만 등장시키십시오. 밀실, 사적인 대화, 고립된 공간 등 외부인이 개입하기 어려운 '닫힌 씬(Closed Scene)'에서는 억지로 난입시키지 마십시오. 조건이 맞지 않으면 현재 참여 중인 인물들의 묘사에만 집중하십시오.
+- [명명 규칙] 새로운 인물 창작 시, 세계관 배경에 어울리는 세련된 이름만 사용하십시오. '김철수' 등 촌스러운 기본 이름 사용 금지.
+- [Show, Don't Tell] 감정 단어를 직접 명시하지 말고 신체 반응과 감각(소리, 냄새, 온도)을 최소 1개 이상 포함해 묘사하십시오.
+- [날것의 호흡] 정제된 문장 대신 말줄임표(...), 헛숨 등을 섞어 각 NPC만의 변별력을 살리십시오.
+- [AI 클리셰 금지] "~것이었다", "~듯했다", "심장이 내려앉았다" 같은 진부한 표현과 요약형 마무리를 피하십시오.
+- [시간 압축] 지루한 대기나 이동 시간은 과감히 생략하고 다음 사건으로 도약하십시오.
+- 🛑 [마무리 규칙] 상황을 요약하거나 질문(~할 것인가?)을 던지지 마십시오. 행동이나 대사 중간에 뚝 끊듯이 클리프행어로 마무리하십시오.
+- [분량] ${isLong ? "**1500자 이상 아주 길고 구체적으로 서술할 것.**" : "**500자 내외로 밀도 있게 서술할 것.**"}`; 
         
         let ruleLines = [];
-        if(Store.state.safety.violence) ruleLines.push("신체 훼손 및 과도한 유혈 묘사 100% 금지. 전투 묘사는 상처의 깊이보다 행위 자체에 집중하여 건조하고 간결하게 서술할 것.");
-        if(Store.state.safety.discrimination) ruleLines.push("출신, 성별 등 특정 집단을 비하하는 멸칭이나 차별적 욕설은 어떤 악역이라도 절대 사용 불가. 위반 시 캐릭터성 붕괴로 간주함.");
-        if(Store.state.safety.sexual) ruleLines.push("성적 묘사 및 원치 않는 스킨십 절대 금지. 캐릭터 간의 접촉은 철저히 플라토닉한 수준으로 제한할 것.");
-        if(Store.state.safety.abuse) ruleLines.push("타인을 가학적으로 억압하거나 심리적/신체적으로 고문하는 묘사 즉시 중단. 불쾌한 상황은 구체적 묘사를 생략하고 상황 결과만 서술할 것.");
-        if(Store.state.safety.selfharm) ruleLines.push("자해 또는 자살 관련 극단적 행위는 일절 언급 금지. 우울감은 행동이나 표정으로만 간접적으로 묘사할 것.");
-        if(Store.state.safety.drugs) ruleLines.push("불법 약물 투약 및 심신상실 상태의 만취 묘사 불가. 음주 상황이더라도 이성적인 판단력을 유지하게 할 것.");
-        if(Store.state.safety.marysue) ruleLines.push("⚠️ [성장물 절대 규칙] 주인공 띄워주기 및 먼치킨 취급 절대 금지. 모든 NPC는 주인공의 현재 스탯만큼만 무미건조하게 평가하며, 주인공이 실력으로 증명하기 전까지는 철저히 하찮게 보거나 무시할 것.");
-        if(Store.state.safety.obsession) ruleLines.push("⚠️ [관계 절대 규칙] 감금, 감시, 스토킹, 비윤리적 소유욕 등 범죄적 집착 묘사 절대 불가. 모든 캐릭터는 타인의 사적 영역과 자유 의지를 철저히 존중하는 성숙한 어른으로 행동할 것.");
-        if(Store.state.safety.gore) ruleLines.push("내장 노출 등 불쾌한 기괴함이나 고어 묘사 금지. 괴물이나 적을 묘사할 때는 징그러움보다는 위협적인 분위기와 압도감 조성에만 집중할 것.");
-        if(Store.state.safety.romance) ruleLines.push("⚠️ [로맨스 원천 차단] 모든 NPC는 주인공에게 성애적 감정을 절대 느끼지 않으며 연애 플래그 성립 불가. 철저히 이해관계에 얽힌 비즈니스 파트너나 선을 긋는 동료로만 대할 것.");
+        if(Store.state.safety.violence) ruleLines.push("신체 훼손 및 유혈 묘사 금지.");
+        if(Store.state.safety.discrimination) ruleLines.push("혐오 멸칭 및 차별적 표현 절대 금지.");
+        if(Store.state.safety.sexual) ruleLines.push("성적 묘사 및 원치 않는 스킨십 금지.");
+        if(Store.state.safety.abuse) ruleLines.push("가학적 고문 및 학대 묘사 즉시 중단.");
+        if(Store.state.safety.selfharm) ruleLines.push("자해 및 극단적 선택 언급 금지.");
+        if(Store.state.safety.drugs) ruleLines.push("불법 약물 및 만취 상태 묘사 불가.");
+        if(Store.state.safety.marysue) ruleLines.push("주인공 띄워주기 금지. NPC는 실력으로 증명하기 전까지 플레이어를 무시하십시오.");
+        if(Store.state.safety.obsession) ruleLines.push("감금, 스토킹 등 범죄적 집착 묘사 불가.");
+        if(Store.state.safety.gore) ruleLines.push("고어 및 기괴한 묘사 금지.");
+        if(Store.state.safety.romance) ruleLines.push("NPC는 주인공에게 성애적 감정을 느끼지 않으며 철저히 비즈니스 파트너로 대합니다.");
 
-        if(ruleLines.length > 0) p += `\n\n[적용된 시스템 통제 규칙]\n- ` + ruleLines.join(`\n- `);
+        if(ruleLines.length > 0) p += `\n\n[통제 규칙]\n- ` + ruleLines.join(`\n- `);
         return p;
     },
 
@@ -237,13 +266,7 @@ window.API = {
         const net = document.getElementById('network-content'); const presetType = document.getElementById('network-preset-sel').value || 'modern';
         net.innerHTML = '<div style="display:flex; align-items:center; gap:8px; color:#fbbf24; font-weight:bold;">세계 반응 스캔 중 <div class="typing-indicator"><span></span><span></span><span></span></div></div>';
         const ctx = r.history.slice(-4).map(m => m.variants[m.currentVariant]).join("\n");
-        const presets = {
-            modern: { name: "현대/현판", tags: ["📰 [공식 보도]", "🔴 [현장 라이브]", "💻 [커뮤니티]", "🔒 [프라이빗 채널]"] },
-            medieval: { name: "중세/로판", tags: ["📜 [황실 공고]", "👗 [연회장 실황]", "🍰 [사교계 가십]", "✉️ [비밀 서신]"] },
-            apocalypse: { name: "아포칼립스", tags: ["📻 [수신 신호]", "👣 [현장 흔적]", "🚨 [생존자 기록]", "🧠 [내면의 환청]"] },
-            wuxia: { name: "시대극/무협", tags: ["📜 [공식 방문]", "🗨 [목격자 진술]", "🍵 [객잔의 소문]", "🕊️ [비선 통신]"] },
-            adventure: { name: "던전/모험", tags: ["📜 [길드 의뢰]", "🔦 [탐색 기록]", "🍺 [주점 수다]", "🏛 [미궁의 비밀]"] }
-        };
+        const presets = { modern: { name: "현대/현판", tags: ["📰 [공식 보도]", "🔴 [현장 라이브]", "💻 [커뮤니티]", "🔒 [프라이빗 채널]"] }, medieval: { name: "중세/로판", tags: ["📜 [황실 공고]", "👗 [연회장 실황]", "🍰 [사교계 가십]", "✉️ [비밀 서신]"] }, apocalypse: { name: "아포칼립스", tags: ["📻 [수신 신호]", "👣 [현장 흔적]", "🚨 [생존자 기록]", "🧠 [내면의 환청]"] }, wuxia: { name: "시대극/무협", tags: ["📜 [공식 방문]", "🗨 [목격자 진술]", "🍵 [객잔의 소문]", "🕊️ [비선 통신]"] }, adventure: { name: "던전/모험", tags: ["📜 [길드 의뢰]", "🔦 [탐색 기록]", "🍺 [주점 수다]", "🏛 [미궁의 비밀]"] } };
         let active = presetType === 'custom' ? { name: document.getElementById('custom-net-name').value.trim() || "자유 지정 세계관", tags: (document.getElementById('custom-net-tags').value.trim() || "[공식],[현장],[수다],[기밀]").split(",").map(t => t.trim()) } : presets[presetType];
 
         try {
