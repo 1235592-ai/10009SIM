@@ -101,6 +101,28 @@ window.UI = {
         if(chk.checked) wrap.classList.add('active'); else wrap.classList.remove('active');
     },
 
+    // 🔥 추가됨: 톤 슬라이더 사이클 및 UI 갱신 함수
+    cycleTone: function() {
+        const tones = ['light', 'normal', 'heavy'];
+        const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
+        if(!r) return;
+        let current = r.tone || 'normal';
+        let nextIdx = (tones.indexOf(current) + 1) % tones.length;
+        Store.updateRoomState('tone', tones[nextIdx]);
+        this.syncToneUI();
+    },
+    syncToneUI: function() {
+        const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
+        let current = r ? (r.tone || 'normal') : 'normal';
+        const labelEl = document.getElementById('tone-label');
+        if(labelEl) {
+            labelEl.innerText = current.charAt(0).toUpperCase() + current.slice(1);
+            if(current === 'light') labelEl.style.color = '#34d399';
+            else if(current === 'heavy') labelEl.style.color = '#f87171';
+            else labelEl.style.color = '#a1a1aa';
+        }
+    },
+
     syncPanelsBeforeClose: function() { 
         if(document.getElementById('world-panel').classList.contains('open')) Store.syncWorldDOM(); 
         if(document.getElementById('char-panel').classList.contains('open')) Store.syncCharDOM(); 
@@ -530,43 +552,82 @@ window.UI = {
         return d;
     },
     
+    // 🔥 변경됨: 마크다운 듀얼 정규식 적용 (볼드체 우선 매칭)
     formatMsg: function(t, role) { 
-        let res = this.esc(t);
         if(role === 'ai') {
-            res = res.split('\n').map(line => { 
-                const match = line.match(/^\s*([^\(\[\~:<*]{1,20})\s*:\s*(.+)$/); 
-                if (match) return `<div class="speech-bubble"><div class="speech-name">${match[1].trim()}</div><div class="speech-content">${match[2]}</div></div>`; 
-                return line; 
-            }).join('\n');
+            return t.split('\n').map(line => { 
+                // 1순위: **이름**: "대사"
+                let m = line.match(/^\s*\*\*(.+?)\*\*\s*:\s*"(.+)"\s*$/);
+                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2])}"</div></div>`; 
+                
+                // 1.5순위: **이름**: 대사 (따옴표 없이 볼드만 적용된 경우)
+                m = line.match(/^\s*\*\*(.+?)\*\*\s*:\s*(.+)$/);
+                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2].replace(/^"|"$/g, ''))}"</div></div>`; 
+
+                // 2순위: 이름: "대사" (기존 패턴 + 따옴표 강제 매칭)
+                m = line.match(/^\s*([가-힣a-zA-Z][^:]{0,19})\s*:\s*"(.+)"\s*$/);
+                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2])}"</div></div>`; 
+
+                // 3순위: 기존 Fallback 로직 (따옴표 매칭)
+                m = line.match(/^\s*([^\(\[\~:<*]{1,20})\s*:\s*"([^"]+)"\s*$/);
+                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2])}"</div></div>`;
+
+                // 4순위: 기존 최후 Fallback 로직 (콜론만 매칭)
+                m = line.match(/^\s*([^\(\[\~:<*]{1,20})\s*:\s*(.+)$/);
+                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2].replace(/^"|"$/g, ''))}"</div></div>`; 
+                
+                let res = this.esc(line);
+                res = res.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); 
+                res = res.replace(/\*(.*?)\*/g, "<em>$1</em>");
+                return res; 
+            }).join('<br>');
         }
+        
+        let res = this.esc(t);
         res = res.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); 
         res = res.replace(/\*(.*?)\*/g, "<em>$1</em>");
         if(role === 'user') res = res.replace(/\((.*?)\)/g, "<span class='action'>($1)</span>"); 
         return res.replace(/\n/g, "<br>"); 
     },
     
+    // 🔥 변경됨: 메시지 컨트롤 UI 개선 (이모지 버튼화 및 더보기 메뉴 분리)
     createCtrls: function(idx) {
         const r = Store.getActiveRoom(); const m = r.history[idx]; const c = document.createElement('div'); c.className = 'msg-controls'; 
         const isLastAi = idx === r.history.findLastIndex(msg => msg.role === 'ai');
         
         if(m.role==='ai') {
-            if(isLastAi) { const rb = document.createElement('button'); rb.innerText="재생성"; rb.onclick=()=>App.runAI(true,idx); c.append(rb); }
-            const bb = document.createElement('button'); bb.innerText="분기"; bb.onclick=()=>App.branch(idx); 
-            const stb = document.createElement('button'); stb.className="btn-stat-up"; stb.innerText="📊 갱신(스탯/성향)"; stb.onclick=()=>App.processStatUpdate(idx); 
-            c.append(bb, stb);
+            if(isLastAi) { 
+                const rb = document.createElement('button'); rb.innerText="🔄"; rb.title="재생성"; 
+                rb.onclick=()=>App.runAI(true,idx); c.append(rb); 
+            }
+            const bb = document.createElement('button'); bb.innerText="🔀"; bb.title="분기 생성"; 
+            bb.onclick=()=>App.branch(idx); c.append(bb);
             
             if(m.variants.length>1) { 
-                const p = document.createElement('button'); p.innerText="<"; p.onclick=()=>{m.currentVariant=(m.currentVariant+m.variants.length-1)%m.variants.length; App.loadActiveRoom(true);}; 
-                const n = document.createElement('button'); n.innerText=">"; n.onclick=()=>{m.currentVariant=(m.currentVariant+1)%m.variants.length; App.loadActiveRoom(true);}; 
+                const p = document.createElement('button'); p.innerText="◀"; p.title="이전 대화"; p.onclick=()=>{m.currentVariant=(m.currentVariant+m.variants.length-1)%m.variants.length; App.loadActiveRoom(true);}; 
+                const n = document.createElement('button'); n.innerText="▶"; n.title="다음 대화"; n.onclick=()=>{m.currentVariant=(m.currentVariant+1)%m.variants.length; App.loadActiveRoom(true);}; 
                 const s = document.createElement('span'); s.innerText=`${m.currentVariant+1}/${m.variants.length}`; 
                 c.append(p, s, n); 
             }
+
+            const moreBtn = document.createElement('button'); moreBtn.innerText="⋯"; moreBtn.title="더보기";
+            const moreMenu = document.createElement('span'); moreMenu.style.display="none"; moreMenu.style.gap="4px";
+            
+            const stb = document.createElement('button'); stb.innerText="📊"; stb.title="스탯/성향 분석 갱신"; stb.onclick=()=>App.processStatUpdate(idx); 
+            const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="메시지 직접 수정"; eb.onclick=()=>this.enterEdit(idx); 
+            const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="⏪"; rw.title="이후 대화 지우고 되감기"; rw.onclick=()=>App.rewindRoom(idx); 
+            const db = document.createElement('button'); db.innerText="🗑️"; db.title="메시지 삭제"; db.onclick=()=>{ if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); Store.forceSave(); App.loadActiveRoom(true); }; 
+            
+            moreBtn.onclick = () => { moreMenu.style.display = moreMenu.style.display==='none' ? 'inline-flex' : 'none'; };
+            moreMenu.append(stb, eb, rw, db);
+            c.append(moreBtn, moreMenu);
+        } else {
+            const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="수정"; eb.onclick=()=>this.enterEdit(idx); 
+            const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="⏪"; rw.title="되감기"; rw.onclick=()=>App.rewindRoom(idx); 
+            const db = document.createElement('button'); db.innerText="🗑️"; db.title="삭제"; db.onclick=()=>{ if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); Store.forceSave(); App.loadActiveRoom(true); }; 
+            c.append(eb, rw, db);
         }
-        
-        const eb = document.createElement('button'); eb.innerText="수정"; eb.onclick=()=>this.enterEdit(idx); 
-        const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="되감기"; rw.onclick=()=>App.rewindRoom(idx); 
-        const db = document.createElement('button'); db.innerText="삭제"; db.onclick=()=>{ if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); Store.forceSave(); App.loadActiveRoom(true); }; 
-        c.append(eb, rw, db); return c;
+        return c;
     },
     
     enterEdit: function(idx) { 
@@ -591,7 +652,6 @@ window.UI = {
         Store.forceSave();
     },
 
-    // 🔥 변경됨: 이모지가 섞여도 완벽하게 잡아내는 마법의 정규식 적용!
     renderNetworkArchive: function() { 
         const r = Store.getActiveRoom(); 
         let raw = r.networkArchive || "정보가 없습니다. 스캔을 실행하세요.";
