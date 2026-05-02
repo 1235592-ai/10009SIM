@@ -37,7 +37,15 @@ window.Store = {
             this.state.roomTags = master.roomTags || [];
             this.state.worlds = await this.dbGetAll('worlds');
             this.state.rooms = await this.dbGetAll('rooms');
-            this.state.rooms.forEach(r => { if(!r.tagIds) r.tagIds = []; });
+            
+            this.state.rooms.forEach(r => { 
+                if(!r.tagIds) r.tagIds = []; 
+                // 🔥 신규 기능 하위 호환성 및 초기화 패치 (톤, 조연 수명 관리, 떡밥 회수)
+                if(!r.transientCharIds) r.transientCharIds = {};
+                if(typeof r.baitRecoveryNextTurn === 'undefined') r.baitRecoveryNextTurn = false;
+                if(!r.tone) r.tone = 'normal';
+            });
+            
             this.state.worlds.forEach(w => { if(!w.keywords) w.keywords = []; });
         } else {
             const defaultSys = {id:'sys', keyword:'시스템', desc:'전지적 시스템', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:true};
@@ -64,7 +72,7 @@ window.Store = {
                     this.state.rooms.forEach(r => tx.objectStore('rooms').put(r));
                 }
             } catch(e) { console.error("DB Save Error", e); }
-        }, 500); // 디바운스 시간 약간 늘려 성능 최적화
+        }, 500);
     },
     
     saveSettings: function() { 
