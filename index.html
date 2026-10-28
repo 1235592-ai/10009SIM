@@ -6,7 +6,7 @@
     <title>10009 시뮬레이터</title>
     <meta name="theme-color" content="#0a0a0a">
     <meta name="color-scheme" content="dark">
-    <link rel="stylesheet" href="css/style.css?v=3.0">
+    <link rel="stylesheet" href="css/style.css?v=3.1">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -212,6 +212,15 @@
             <div id="world-factions-list" style="margin-top:10px;"></div>
             <button class="btn-ghost" onclick="Store.addFaction()">+ 세력 추가</button>
         </details>
+        <details class="acc-sec" id="det-world-chars">
+            <summary style="color:#fbbf24;">👤 인물</summary>
+            <div id="world-chars-list" style="margin-top:10px;"></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
+                <button type="button" class="btn-ghost" style="margin:0; padding:10px 4px; font-size:0.85rem;" onclick="Store.addCharacter()">➕ 새 인물</button>
+                <button type="button" class="btn-main" style="margin:0; padding:10px 4px; background:#6366f1; font-size:0.85rem;" onclick="App.runCharGenerator()">🪄 AI 연성</button>
+                <button type="button" class="btn-ghost" style="margin:0; padding:10px 4px; border-color:#38bdf8; color:#38bdf8; font-size:0.85rem;" onclick="UI.openImportModal()">📥 가져오기</button>
+            </div>
+        </details>
         <details class="acc-sec">
             <summary style="color:#a3e635;">📚 지식 및 설정 (분류)</summary>
             <div id="world-lore-folders-list" style="margin-top:10px;"></div>
@@ -307,12 +316,13 @@
     <div id="new-room-modal" class="modal-base"><div class="modal-header"><h3>🎭 새 시나리오</h3><button class="close-btn-new" onclick="UI.closeModal('new-room-modal')">✕</button></div><select id="new-room-world-sel" class="select-std"></select><input type="text" id="new-room-name" class="input-std" placeholder="제목"><button class="btn-play" onclick="App.createNewRoom()">생성</button></div>
     <div id="edit-room-modal" class="modal-base"><div class="modal-header"><h3>✏️ 수정</h3><button class="close-btn-new" onclick="UI.closeModal('edit-room-modal')">✕</button></div><input type="hidden" id="edit-room-id"><input type="text" id="edit-room-name" class="input-std"><button class="btn-main" style="margin-top:10px;" onclick="App.saveRoomInfo()">저장</button></div>
     <div id="import-modal" class="modal-base"><div class="modal-header"><h3>📥 인물 불러오기</h3><button class="close-btn-new" onclick="UI.closeModal('import-modal')">✕</button></div><select id="import-world-sel" class="select-std" onchange="UI.renderImportChars()"></select><div id="import-char-list" style="margin-top:10px; max-height:200px; overflow-y:auto;"></div></div>
-    <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3>🏷️ 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')">✕</button></div><div id="tag-manage-list" style="max-height:250px; overflow-y:auto; margin-bottom:10px;"></div></div>
+    <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3>🏷️ 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')">✕</button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 🌌 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
-    <script src="js/store.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/dice.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/app.js"></script>
+    <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
+    <script src="js/store.js?v=3.1"></script>
+    <script src="js/api.js?v=3.1"></script>
+    <script src="js/dice.js?v=3.1"></script>
+    <script src="js/ui.js?v=3.1"></script>
+    <script src="js/app.js?v=3.1"></script>
 </body>
 </html>
