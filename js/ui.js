@@ -126,9 +126,15 @@ window.UI = {
         const worldOpen = document.getElementById('world-panel').classList.contains('open');
         const charOpen = document.getElementById('char-panel').classList.contains('open');
         if(worldOpen) Store.syncWorldDOM(); 
-        if(worldOpen || charOpen) Store.syncCharDOM(); 
+        if(charOpen) { Store.syncCharDOM(); ['char-my-area', 'char-active-area', 'char-other-area'].forEach(id => { document.getElementById(id).innerHTML = ''; }); }
         if(worldOpen || charOpen) { Store.forceSave(); if(!Store.state.activeRoomId) this.renderWorldTemplateList(); }
     },
+
+    refreshOpenPanel: function() {
+        if(document.getElementById('world-panel').classList.contains('open')) this.renderWorld();
+        if(document.getElementById('char-panel').classList.contains('open')) this.renderCharacters();
+    },
+    openDetails: function(ids) { ids.forEach(id => { const el = document.getElementById(id); if(el) el.open = true; }); },
 
     renderApiSettings: function() {
         const provider = API.getProvider(); const info = API.PROVIDERS[provider];
@@ -176,9 +182,13 @@ window.UI = {
                 this.renderWorld(); 
             }
             if(id==='char-panel') { 
-                if(!Store.state.activeRoomId) { document.getElementById('h3-my-char').style.display = 'none'; document.getElementById('h3-active-npc').style.display = 'none'; document.getElementById('h3-other-char').innerText = '👥 모든 인물'; } 
-                else { document.getElementById('h3-my-char').style.display = 'block'; document.getElementById('h3-active-npc').style.display = 'block'; document.getElementById('h3-other-char').innerText = '👥 대기 중인 조연'; } 
-                this.renderCharFilter(); this.renderCharacters(); 
+                const inRoom = !!Store.state.activeRoomId;
+                document.getElementById('h3-my-char').style.display = inRoom ? 'flex' : 'none'; document.getElementById('h3-active-npc').style.display = inRoom ? 'flex' : 'none';
+                document.getElementById('h3-other-char').innerText = inRoom ? '🚩 세력별 인물 (대기 중인 조연)' : '🚩 세력별 인물';
+                this.lastFocusedWorldInput = null;
+                const mBtn = document.getElementById('magic-btn-char');
+                if(mBtn) { mBtn.disabled = true; mBtn.style.opacity = '0.3'; mBtn.style.boxShadow = 'none'; }
+                this.renderCharacters(); 
             } 
             if(id==='sys-panel') { 
                 const r = Store.getActiveRoom();
@@ -250,7 +260,7 @@ window.UI = {
             <div class="lobby-card-meta">👤 ${w.characters.filter(c => c.id !== 'sys').length}명 · 🗺️ ${w.regions.length}지역 · 📍 ${w.locations.length}장소</div>
             <div class="card-btns">
                 <button class="btn-play btn-world" onclick="App.editWorldTemplate('${w.id}')">🛠 세계관</button>
-                <button class="btn-play" style="background:var(--surface-3); color:#fff;" onclick="App.editWorldChars('${w.id}')">👤 인물</button>
+                <button class="btn-play" style="background:var(--surface-3); color:#fff;" onclick="App.editWorldChars('${w.id}')">👥 세력</button>
                 <button class="btn-icon danger" onclick="Store.deleteWorldTemplate('${w.id}')" title="템플릿 삭제">✖</button>
             </div>
         </div>`).join(''); 
@@ -276,19 +286,6 @@ window.UI = {
         const wnEl = document.getElementById('w-n'); if(wnEl) wnEl.value = w.name || ''; 
         const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; 
         const wurlEl = document.getElementById('w-url'); if(wurlEl) wurlEl.value = w.bgUrl || '';
-        
-        const facList = document.getElementById('world-factions-list');
-        if(facList) facList.innerHTML = w.factions.map(f => `
-            <details class="item-card card-faction" id="det-f-${f.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-                <summary>${this.esc(f.name) || '새 세력'}</summary>
-                <div style="margin-top:10px;">
-                    <input type="text" class="input-std" id="f-n-${f.id}" value="${this.esc(f.name)}" placeholder="세력명">
-                    <textarea class="area-std auto-resize" id="f-d-${f.id}" placeholder="특징" oninput="UI.autoResize(this);">${this.esc(f.desc)}</textarea>
-                    <span class="secret-label">🔒 세력 비밀</span>
-                    <textarea class="area-std auto-resize" id="f-s-${f.id}" oninput="UI.autoResize(this);">${this.esc(f.secret)}</textarea>
-                    <button class="btn-danger" onclick="Store.delWorldItem('f','${f.id}', event)">삭제</button>
-                </div>
-            </details>`).join('');
         
         const folderMap = { '': [] }; w.loreFolders.forEach(lf => folderMap[lf.id] = []); w.lores.forEach(l => { if(folderMap[l.folderId]) folderMap[l.folderId].push(l); else folderMap[''].push(l); });
         const locOptions = `<option value="">(장소 조건 없음)</option>` + w.locations.map(loc => `<option value="${loc.id}">${this.esc(loc.name)}에서만 활성화</option>`).join('');
@@ -382,18 +379,51 @@ window.UI = {
             }
         }
 
-        this.renderWorldChars();
         openState.forEach(id => { const el = document.getElementById(id); if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } });
         if(panel) panel.scrollTop = st; 
     },
 
-    renderCharFilter: function() { 
-        const w = Store.getTargetWorld(); if(!w) return; 
-        const sel = document.getElementById('char-filter-sel'); 
-        sel.innerHTML = `<option value="all">전체 세력 보기</option><option value="none">무소속 보기</option>` + w.factions.map(f => `<option value="${f.id}">${this.esc(f.name)}</option>`).join(''); 
+    // 인물 카드는 접힌 껍데기만 그리고, 펼칠 때 편집칸을 채운다.
+    // 같은 인물이 여러 세력 묶음에 보여도 입력칸(id)은 항상 한 곳에만 존재하게 하기 위함.
+    buildCharHTML: function(c, isMy, isNpc, w, key) {
+        let roleTag = ''; 
+        if(isMy) roleTag = '<span class="role-badge role-my">나의 캐릭터</span>'; 
+        else if(isNpc) roleTag = '<span class="role-badge role-npc">주연 (항시 참여)</span>';
+        const facNames = (c.factionIds || []).map(fid => w.factions.find(f => f.id === fid)?.name).filter(n => n);
+        const multi = facNames.length > 1 ? `<span style="font-size:0.72rem; color:#8e8e9c; margin-left:6px;">${facNames.map(n => this.esc(n)).join(' · ')}</span>` : '';
+        return `
+        <details class="item-card card-char ${isMy?'my-char':''} ${isNpc?'active-npc':''} ${c.isHidden?'hidden':''}" id="det-c-${c.id}-${key}" data-cid="${c.id}" data-my="${isMy?1:0}" data-npc="${isNpc?1:0}" ontoggle="UI.onCharToggle(this)">
+            <summary><div>${this.esc(c.keyword) || '새 인물'} ${roleTag}${multi}</div></summary>
+            <div class="char-body"></div>
+        </details>`;
     },
-    
-    buildCharHTML: function(c, isMy, isNpc, w) {
+
+    onCharToggle: function(el) {
+        const cid = el.dataset.cid; const body = el.querySelector('.char-body');
+        if(el.open) {
+            Store.syncCharDOM();
+            document.querySelectorAll(`.card-char[data-cid="${cid}"]`).forEach(other => {
+                if(other === el) return;
+                other.open = false; other.querySelector('.char-body').innerHTML = '';
+            });
+            const w = Store.getTargetWorld(); const c = w.characters.find(x => x.id === cid); if(!c) return;
+            body.innerHTML = this.buildCharBody(c, el.dataset.my === '1', el.dataset.npc === '1', w);
+            this.renderFacTags(cid);
+            body.querySelectorAll('textarea').forEach(t => this.autoResize(t));
+        } else if(body.innerHTML) {
+            Store.syncCharDOM(); body.innerHTML = '';
+        }
+    },
+
+    // 세력을 바꾼 뒤, 옮겨간 묶음에서 그 인물 카드를 다시 펼쳐 보여준다
+    focusChar: function(cid, fid) {
+        const sel = fid ? `#det-c-${cid}-${fid}` : `.card-char[data-cid="${cid}"]`;
+        const el = document.querySelector(sel) || document.querySelector(`.card-char[data-cid="${cid}"]`); if(!el) return;
+        const group = el.closest('.fac-group'); if(group) group.open = true;
+        el.open = true; setTimeout(() => el.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50);
+    },
+
+    buildCharBody: function(c, isMy, isNpc, w) {
         if(!c.stats) c.stats = []; if(!c.reputation) c.reputation = []; if(!c.factionIds) c.factionIds = [];
         const statHtml = c.stats.map((s, sIdx) => `
             <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center;">
@@ -418,17 +448,11 @@ window.UI = {
                     <input type="range" min="-5" max="5" step="1" value="${rObj.value}" style="flex:1; cursor:pointer;" oninput="document.getElementById('rep-val-${c.id}-${rIdx}').innerText=this.value" onchange="Store.upRep('${c.id}', ${rIdx}, 'value', this.value)">
                 </div>
             </div>`).join('');
-            
-        let roleTag = ''; 
-        if(isMy) roleTag = '<span class="role-badge role-my">나의 캐릭터</span>'; 
-        else if(isNpc) roleTag = '<span class="role-badge role-npc">주연 (항시 참여)</span>';
         
         const locOpts = `<option value="">(조건 없음)</option>` + w.locations.map(loc => `<option value="${loc.id}" ${c.triggerLocId===loc.id?'selected':''}>${this.esc(loc.name)} 등장</option>`).join('');
         const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
 
         return `
-        <details class="item-card card-char ${isMy?'my-char':''} ${isNpc?'active-npc':''} ${c.isHidden?'hidden':''}" id="det-c-${c.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-            <summary><div>${this.esc(c.keyword) || '새 인물'} ${roleTag}</div></summary>
             <div style="margin-top:12px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <div style="display:flex; gap:6px;">
@@ -471,30 +495,11 @@ window.UI = {
                 </details>
                 
                 ${c.id!=='sys' ? `<button class="btn-danger" style="margin-top:16px;" onclick="Store.delChar('${c.id}')">인물 완전 삭제</button>` : ''}
-            </div>
-        </details>`;
+            </div>`;
     },
     
-    renderWorldChars: function() {
-        const w = Store.getTargetWorld(); const list = document.getElementById('world-chars-list'); if(!w || !list) return;
-        const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
-        const panel = document.getElementById('world-panel'); const st = panel.scrollTop;
-        const openState = []; list.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); });
-        // 같은 id를 쓰는 인물 관리 패널 쪽 입력칸은 비워서 저장 시 엉뚱한 칸을 읽지 않게 한다
-        ['char-my-area', 'char-active-area', 'char-other-area'].forEach(id => { document.getElementById(id).innerHTML = ''; });
-        const chars = w.characters.filter(c => c.id !== 'sys');
-        list.innerHTML = chars.length ? chars.map(c => this.buildCharHTML(c, r && c.id === r.myCharId, r && r.activeCharIds.includes(c.id), w)).join('') : '<p style="font-size:0.85rem; color:#71717a; margin-bottom:10px;">등록된 인물이 없습니다.</p>';
-        chars.forEach(c => this.renderFacTags(c.id));
-        openState.forEach(id => { const el = document.getElementById(id); if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } });
-        panel.scrollTop = st;
-    },
-
     renderCharacters: function() {
-        if(document.getElementById('world-panel').classList.contains('open')) return this.renderWorldChars();
-        const wcl = document.getElementById('world-chars-list'); if(wcl) wcl.innerHTML = '';
-        const w = Store.getTargetWorld(); const r = Store.state.activeRoomId ? Store.getActiveRoom() : null; const filterVal = document.getElementById('char-filter-sel').value;
-        const filterFn = c => { if(filterVal === 'all') return true; if(filterVal === 'none') return !c.factionIds || c.factionIds.length === 0; return (c.factionIds || []).includes(filterVal); };
-        
+        const w = Store.getTargetWorld(); if(!w) return; const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
         const panel = document.getElementById('char-panel');
         const st = panel ? panel.scrollTop : 0; 
 
@@ -502,29 +507,52 @@ window.UI = {
         if (panel && panel.classList.contains('open')) {
             panel.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); });
         }
+        Store.syncCharDOM();
 
+        const others = w.characters.filter(c => c.id !== 'sys' && (!r || (c.id !== r.myCharId && !r.activeCharIds.includes(c.id))));
         if(r) {
             const my = w.characters.find(c=>c.id===r.myCharId); 
-            const act = w.characters.filter(c=>r.activeCharIds.includes(c.id) && c.id!==r.myCharId && c.id!=='sys' && filterFn(c)); 
-            const oth = w.characters.filter(c=>!r.activeCharIds.includes(c.id) && c.id!==r.myCharId && c.id!=='sys' && filterFn(c));
-            
-            document.getElementById('char-my-area').innerHTML = my && filterFn(my) ? this.buildCharHTML(my, true, false, w) : ''; 
-            document.getElementById('char-active-area').innerHTML = act.map(c=>this.buildCharHTML(c, false, true, w)).join(''); 
-            document.getElementById('char-other-area').innerHTML = oth.map(c=>this.buildCharHTML(c, false, false, w)).join('');
+            const act = w.characters.filter(c=>r.activeCharIds.includes(c.id) && c.id!==r.myCharId && c.id!=='sys'); 
+            document.getElementById('char-my-area').innerHTML = my ? this.buildCharHTML(my, true, false, w, 'my') : ''; 
+            document.getElementById('char-active-area').innerHTML = act.length ? act.map(c=>this.buildCharHTML(c, false, true, w, 'act')).join('') : '<p class="hint">참여 중인 주연이 없습니다.</p>'; 
         } else {
-            const oth = w.characters.filter(c=>c.id!=='sys' && filterFn(c)); 
             document.getElementById('char-my-area').innerHTML = ''; 
             document.getElementById('char-active-area').innerHTML = ''; 
-            document.getElementById('char-other-area').innerHTML = oth.map(c=>this.buildCharHTML(c, false, false, w)).join('');
         }
-        
-        w.characters.forEach(c => { if(c.id !== 'sys') this.renderFacTags(c.id); });
 
-        openState.forEach(id => { 
-            const el = document.getElementById(id); 
-            if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } 
-        });
-        
+        const validF = new Set(w.factions.map(f => f.id));
+        const empty = '<p class="hint" style="margin:6px 0 10px;">소속 인물이 없습니다.</p>';
+        const groups = w.factions.map(f => {
+            const members = others.filter(c => (c.factionIds || []).includes(f.id));
+            return `
+            <details class="folder-box fac-group" id="det-fg-${f.id}">
+                <summary class="folder-title">
+                    <h4 style="margin:0; color:#60a5fa;">🚩 ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
+                    <button class="mini-btn" title="세력 삭제" onclick="Store.delWorldItem('f','${f.id}', event)">✖</button>
+                </summary>
+                <div style="margin-top:10px;">
+                    <details class="item-card card-faction" id="det-f-${f.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
+                        <summary>📝 세력 정보</summary>
+                        <div style="margin-top:10px;">
+                            <input type="text" class="input-std" id="f-n-${f.id}" value="${this.esc(f.name)}" placeholder="세력명">
+                            <textarea class="area-std auto-resize" id="f-d-${f.id}" placeholder="특징" oninput="UI.autoResize(this);">${this.esc(f.desc)}</textarea>
+                            <span class="secret-label">🔒 세력 비밀</span>
+                            <textarea class="area-std auto-resize" id="f-s-${f.id}" oninput="UI.autoResize(this);">${this.esc(f.secret)}</textarea>
+                        </div>
+                    </details>
+                    ${members.map(c => this.buildCharHTML(c, false, false, w, f.id)).join('') || empty}
+                </div>
+            </details>`;
+        }).join('');
+        const loners = others.filter(c => !(c.factionIds || []).some(fid => validF.has(fid)));
+        const lonerGroup = `
+            <details class="folder-box fac-group" id="det-fg-none">
+                <summary class="folder-title"><h4 style="margin:0; color:#a1a1aa;">👤 무소속 <span class="fac-count">${loners.length}</span></h4></summary>
+                <div style="margin-top:10px;">${loners.map(c => this.buildCharHTML(c, false, false, w, 'none')).join('') || empty}</div>
+            </details>`;
+        document.getElementById('char-other-area').innerHTML = groups + lonerGroup;
+
+        openState.forEach(id => { const el = document.getElementById(id); if(el) el.open = true; });
         if(panel) panel.scrollTop = st; 
     },
     

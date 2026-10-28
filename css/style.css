@@ -447,6 +447,11 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
 .fac-tag { background: var(--surface-3); color: #ddd; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px; }
 .fac-tag button { background: none; border: none; color: #aaa; cursor: pointer; }
 
+.char-sec-title { margin: 10px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--border-color); font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.fac-group > summary h4 { display: flex; align-items: center; gap: 8px; }
+.fac-count { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); background: var(--surface-3); padding: 1px 8px; border-radius: 10px; }
+.fac-group .card-faction { background: #14141a; border-style: dashed; }
+
 .card-char {
     margin-bottom: 14px;
     background: #1a1a20;
