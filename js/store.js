@@ -1,7 +1,7 @@
 window.Store = {
     VERSION: 100,
     state: {
-        provider: 'gemini', apiKey: '', modelName: 'gemini-3.1-flash-lite-preview', baseUrl: '', providerConfigs: {}, globalRules: '', lobbyBgUrl: '',
+        provider: 'gemini', apiKey: '', modelName: 'gemini-3.5-flash-lite', baseUrl: '', providerConfigs: {}, globalRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
         safety: { violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false },
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
@@ -32,7 +32,8 @@ window.Store = {
         if (master) {
             this.state.provider = master.provider || 'gemini';
             this.state.apiKey = master.apiKey || ''; 
-            this.state.modelName = master.modelName || API.PROVIDERS[this.state.provider]?.defaultModel || 'gemini-3.1-flash-lite-preview';
+            this.state.modelName = master.modelName || API.PROVIDERS[this.state.provider]?.defaultModel || 'gemini-3.5-flash-lite';
+            this.state.worldTagsMigrated = !!master.worldTagsMigrated;
             this.state.baseUrl = master.baseUrl || '';
             this.state.providerConfigs = master.providerConfigs || {};
             this.state.globalRules = master.globalRules || '';
@@ -51,10 +52,18 @@ window.Store = {
             });
             
             this.state.worlds.forEach(w => { if(!w.keywords) w.keywords = []; });
+
+            // 기존 시나리오에 세계관 태그를 한 번만 자동으로 붙인다 (사용자가 지운 태그가 다시 생기지 않도록 플래그로 관리)
+            if(!this.state.worldTagsMigrated) {
+                this.state.rooms.forEach(r => { const tId = this.ensureWorldTag(r.worldInstance?.name); if(tId && !r.tagIds.includes(tId)) r.tagIds.push(tId); });
+                this.state.worldTagsMigrated = true;
+                this.forceSave();
+            }
         } else {
             const defaultSys = {id:'sys', keyword:'시스템', desc:'전지적 시스템', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:true};
             const defaultWorld = { id: 'w_'+Date.now(), name: '기본 세계관', prompt: '현대 배경.', bgUrl: '', keywords: [], regions: [], locations: [], factions: [], loreFolders: [], lores: [], characters: [defaultSys] };
             this.state.worlds.push(defaultWorld);
+            this.state.worldTagsMigrated = true;
             this.forceSave(); 
         }
     },
@@ -81,7 +90,7 @@ window.Store = {
     
     masterSettings: function() {
         const s = this.state;
-        return { provider: s.provider, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
+        return { provider: s.provider, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
     },
 
     // 현재 입력된 키/모델을 서비스별로 따로 보관해 두어, 서비스를 바꿔도 이전 키가 지워지지 않게 한다.
@@ -128,6 +137,14 @@ window.Store = {
         UI.showToast("기본 지침으로 되돌렸습니다.");
     },
     
+    // 세계관 이름과 같은 세계관 태그를 찾고, 없으면 만든다. 태그 id를 반환.
+    ensureWorldTag: function(name) {
+        name = (name || '').trim(); if(!name) return null;
+        let t = this.state.roomTags.find(x => x.kind === 'world' && x.name === name);
+        if(!t) { t = { id: 'tag_' + Date.now() + Math.random().toString(36).substr(2, 5), name, kind: 'world' }; this.state.roomTags.push(t); }
+        return t.id;
+    },
+
     getActiveRoom: function() { return this.state.rooms.find(r => r.id === this.state.activeRoomId); },
     getTargetWorld: function() { if(this.state.activeRoomId) return this.getActiveRoom().worldInstance; return this.state.worlds.find(w => w.id === this.state.activeWorldId); },
     updateRoomState: function(key, val) { const r = this.getActiveRoom(); if(r) { r[key] = val; this.forceSave(); } },
@@ -152,7 +169,7 @@ window.Store = {
         w.regions.forEach(reg => { reg.name = document.getElementById(`reg-n-${reg.id}`)?.value ?? reg.name; reg.desc = document.getElementById(`reg-d-${reg.id}`)?.value ?? reg.desc; });
         w.locations.forEach(loc => { loc.name = document.getElementById(`loc-n-${loc.id}`)?.value ?? loc.name; loc.desc = document.getElementById(`loc-d-${loc.id}`)?.value ?? loc.desc; loc.regionId = document.getElementById(`loc-r-${loc.id}`)?.value ?? loc.regionId; });
     },
-    saveWorld: function() { this.syncWorldDOM(); this.forceSave(); UI.renderWorld(); UI.showToast("세계관이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); else UI.renderWorldTemplateList(); },
+    saveWorld: function() { this.syncWorldDOM(); this.syncCharDOM(); this.forceSave(); UI.renderWorld(); UI.showToast("세계관이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); else UI.renderWorldTemplateList(); },
     
     removeKeyword: function(k) { const w = this.getTargetWorld(); if(w && w.keywords) { w.keywords = w.keywords.filter(x => x !== k); this.forceSave(); UI.renderKeywords(); UI.renderWorld(); } },
 
@@ -224,7 +241,7 @@ window.Store = {
                 
                 this.db = await this.openDB();
                 const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
-                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.1-flash-lite-preview', baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
+                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.5-flash-lite', worldTagsMigrated:!!st.worldTagsMigrated, baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
                 if(st.worlds) { st.worlds.forEach(w => { if(!w.keywords) w.keywords=[]; tx.objectStore('worlds').put(w); }); }
                 if(st.rooms) st.rooms.forEach(rm => tx.objectStore('rooms').put(rm));
                 tx.oncomplete = () => { alert("복원 완료! 앱을 재시작합니다."); window.location.reload(); };

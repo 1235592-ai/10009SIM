@@ -235,7 +235,7 @@ window.App = {
             UI.showToast(`✨ [${data.keyword}] 캐릭터가 연성되었습니다!`);
             
             setTimeout(() => {
-                const panel = document.getElementById('char-panel');
+                const panel = document.querySelector('.panel.open') || document.getElementById('char-panel');
                 if(panel) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
             }, 100);
 
@@ -437,9 +437,23 @@ window.App = {
         UI.showToast("새 템플릿으로 추출되었습니다.");
     },
 
+    createRoomTag: function(name) {
+        name = (name || '').trim(); if(!name) return null;
+        const exist = Store.state.roomTags.find(t => t.name === name && t.kind !== 'world');
+        if(exist) return exist.id;
+        const t = { id: 'tag_' + Date.now() + Math.random().toString(36).substr(2, 5), name };
+        Store.state.roomTags.push(t); Store.forceSave(); UI.renderScenarioList(); UI.renderTagManageList();
+        return t.id;
+    },
+    createRoomTagFromInput: function() {
+        const el = document.getElementById('new-tag-name');
+        if(!el.value.trim()) return;
+        this.createRoomTag(el.value); el.value = ''; UI.showToast("태그가 추가되었습니다.");
+    },
     updateRoomTag: function(id, val) { const t = Store.state.roomTags.find(x=>x.id===id); if(t && val.trim()) { t.name = val.trim(); Store.forceSave(); UI.renderScenarioList(); } },
     deleteRoomTag: function(id) { if(!confirm("영구 삭제하시겠습니까?")) return; Store.state.roomTags = Store.state.roomTags.filter(x=>x.id!==id); Store.state.rooms.forEach(r => { r.tagIds = r.tagIds.filter(tid=>tid!==id); }); Store.forceSave(); UI.renderScenarioList(); UI.renderTagManageList(); },
-    addRoomTag: function(rId, selEl, e) { e.stopPropagation(); const tId = selEl.value; if(!tId) return; selEl.value = ''; const r = Store.state.rooms.find(x => x.id === rId); if(!r.tagIds.includes(tId)) { r.tagIds.push(tId); Store.forceSave(); UI.renderScenarioList(); } },
+    addRoomTag: function(rId, selEl, e) { e.stopPropagation(); let tId = selEl.value; if(!tId) return; selEl.value = '';
+        if(tId === '__new') { tId = this.createRoomTag(prompt("새 태그 이름을 입력하세요.")); if(!tId) return; } const r = Store.state.rooms.find(x => x.id === rId); if(!r.tagIds.includes(tId)) { r.tagIds.push(tId); Store.forceSave(); UI.renderScenarioList(); } },
     removeRoomTag: function(rId, tId, e) { e.stopPropagation(); const r = Store.state.rooms.find(x => x.id === rId); r.tagIds = r.tagIds.filter(id => id !== tId); Store.forceSave(); UI.renderScenarioList(); },
     editRoomInfo: function(id) { document.getElementById('edit-room-id').value = id; document.getElementById('edit-room-name').value = Store.state.rooms.find(x => x.id === id).name; UI.openModal('edit-room-modal'); },
     saveRoomInfo: function() { const r = Store.state.rooms.find(x => x.id === document.getElementById('edit-room-id').value); if(r) { r.name = document.getElementById('edit-room-name').value.trim() || '시나리오'; Store.forceSave(); UI.renderScenarioList(); } UI.closeModal('edit-room-modal'); },
@@ -496,7 +510,7 @@ window.App = {
             globalStatus: '', 
             currentLocIdx: -1, 
             networkArchive: '', 
-            tagIds: [],
+            tagIds: [Store.ensureWorldTag(worldClone.name)].filter(x => x),
             transientCharIds: {}, 
             baitRecoveryNextTurn: false,
             tone: 'normal'

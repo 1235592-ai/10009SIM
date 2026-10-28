@@ -1,7 +1,7 @@
 window.API = {
     PROVIDERS: {
-        gemini: { label: 'Google Gemini', keyHint: 'Gemini API Key', defaultModel: 'gemini-3.1-flash-lite-preview',
-            models: [ ['gemini-3.1-flash-lite-preview', '가볍고 빠름'], ['gemini-3.1-flash', '표준'], ['gemini-3.1-pro', '고성능'] ],
+        gemini: { label: 'Google Gemini', keyHint: 'Gemini API Key', defaultModel: 'gemini-3.5-flash-lite',
+            models: [ ['gemini-3.5-flash-lite', '가볍고 빠름'], ['gemini-3.8-flash', '표준'], ['gemini-3.1-pro', '고성능'] ],
             hint: 'Google AI Studio에서 발급한 키를 입력하세요.' },
         openai: { label: 'OpenAI (GPT)', keyHint: 'OpenAI API Key (sk-...)', defaultModel: 'gpt-5-mini',
             models: [ ['gpt-5', '고성능'], ['gpt-5-mini', '가볍고 빠름'], ['gpt-4.1', '이전 세대'], ['gpt-4o', '이전 세대'] ],

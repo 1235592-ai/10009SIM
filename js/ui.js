@@ -126,7 +126,7 @@ window.UI = {
         const worldOpen = document.getElementById('world-panel').classList.contains('open');
         const charOpen = document.getElementById('char-panel').classList.contains('open');
         if(worldOpen) Store.syncWorldDOM(); 
-        if(charOpen) Store.syncCharDOM(); 
+        if(worldOpen || charOpen) Store.syncCharDOM(); 
         if(worldOpen || charOpen) { Store.forceSave(); if(!Store.state.activeRoomId) this.renderWorldTemplateList(); }
     },
 
@@ -213,11 +213,10 @@ window.UI = {
             
             const tagsHtml = r.tagIds.map(tId => { 
                 const tObj = Store.state.roomTags.find(x => x.id === tId); 
-                return tObj ? `<span class="lobby-card-tag" style="background:#7c3aed;">${this.esc(tObj.name)} <button type="button" onclick="App.removeRoomTag('${r.id}', '${tId}', event)">×</button></span>` : ''; 
+                return tObj ? `<span class="lobby-card-tag" style="background:${tObj.kind==='world'?'#047857':'#7c3aed'};">${tObj.kind==='world'?'🌌 ':''}${this.esc(tObj.name)} <button type="button" onclick="App.removeRoomTag('${r.id}', '${tId}', event)">×</button></span>` : ''; 
             }).join('');
             
-            const addTagSelect = Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).length > 0 ? 
-                `<select class="select-std tag-add-sel" onclick="event.stopPropagation()" onchange="App.addRoomTag('${r.id}', this, event)"><option value="">+ 태그</option>${Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).map(t => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}</select>` : '';
+            const addTagSelect = `<select class="select-std tag-add-sel" onclick="event.stopPropagation()" onchange="App.addRoomTag('${r.id}', this, event)"><option value="">+ 태그</option>${Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).map(t => `<option value="${t.id}">${t.kind==='world'?'🌌 ':''}${this.esc(t.name)}</option>`).join('')}<option value="__new">✏️ 새 태그 만들기...</option></select>`;
             
             return `
             <div class="lobby-card ${isRecent ? 'recent' : ''}">
@@ -236,7 +235,12 @@ window.UI = {
         }).join('');
         
         const filterSel = document.getElementById('lobby-room-filter'); 
-        filterSel.innerHTML = '<option value="all">모든 시나리오 보기</option>' + Store.state.roomTags.map(t => `<option value="${t.id}" ${filterSel.value===t.id?'selected':''}>${this.esc(t.name)}</option>`).join('');
+        const cur = filterSel.value;
+        const opt = t => `<option value="${t.id}" ${cur===t.id?'selected':''}>${this.esc(t.name)} (${Store.state.rooms.filter(r => r.tagIds.includes(t.id)).length})</option>`;
+        const worldTags = Store.state.roomTags.filter(t => t.kind === 'world'); const userTags = Store.state.roomTags.filter(t => t.kind !== 'world');
+        filterSel.innerHTML = `<option value="all">모든 시나리오 보기 (${Store.state.rooms.length})</option>`
+            + (worldTags.length ? `<optgroup label="🌌 세계관별">${worldTags.map(opt).join('')}</optgroup>` : '')
+            + (userTags.length ? `<optgroup label="🏷️ 태그별">${userTags.map(opt).join('')}</optgroup>` : '');
     },
     
     renderWorldTemplateList: function() { 
@@ -378,6 +382,7 @@ window.UI = {
             }
         }
 
+        this.renderWorldChars();
         openState.forEach(id => { const el = document.getElementById(id); if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } });
         if(panel) panel.scrollTop = st; 
     },
@@ -470,7 +475,23 @@ window.UI = {
         </details>`;
     },
     
+    renderWorldChars: function() {
+        const w = Store.getTargetWorld(); const list = document.getElementById('world-chars-list'); if(!w || !list) return;
+        const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
+        const panel = document.getElementById('world-panel'); const st = panel.scrollTop;
+        const openState = []; list.querySelectorAll('details[open]').forEach(d => { if(d.id) openState.push(d.id); });
+        // 같은 id를 쓰는 인물 관리 패널 쪽 입력칸은 비워서 저장 시 엉뚱한 칸을 읽지 않게 한다
+        ['char-my-area', 'char-active-area', 'char-other-area'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+        const chars = w.characters.filter(c => c.id !== 'sys');
+        list.innerHTML = chars.length ? chars.map(c => this.buildCharHTML(c, r && c.id === r.myCharId, r && r.activeCharIds.includes(c.id), w)).join('') : '<p style="font-size:0.85rem; color:#71717a; margin-bottom:10px;">등록된 인물이 없습니다.</p>';
+        chars.forEach(c => this.renderFacTags(c.id));
+        openState.forEach(id => { const el = document.getElementById(id); if(el) { el.open = true; el.querySelectorAll('textarea').forEach(t => UI.autoResize(t)); } });
+        panel.scrollTop = st;
+    },
+
     renderCharacters: function() {
+        if(document.getElementById('world-panel').classList.contains('open')) return this.renderWorldChars();
+        const wcl = document.getElementById('world-chars-list'); if(wcl) wcl.innerHTML = '';
         const w = Store.getTargetWorld(); const r = Store.state.activeRoomId ? Store.getActiveRoom() : null; const filterVal = document.getElementById('char-filter-sel').value;
         const filterFn = c => { if(filterVal === 'all') return true; if(filterVal === 'none') return !c.factionIds || c.factionIds.length === 0; return (c.factionIds || []).includes(filterVal); };
         
@@ -540,8 +561,9 @@ window.UI = {
         const list = document.getElementById('tag-manage-list'); 
         if(Store.state.roomTags.length === 0) return list.innerHTML = '<p style="color:#a1a1aa; font-size:0.85rem;">생성된 태그가 없습니다.</p>'; 
         list.innerHTML = Store.state.roomTags.map(t => `
-            <div style="background:#18181b; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #27272a;">
-                <input type="text" class="input-std" style="margin:0; width:70%; padding:8px;" value="${this.esc(t.name)}" onchange="App.updateRoomTag('${t.id}', this.value)">
+            <div style="background:#18181b; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; gap:8px; justify-content:space-between; align-items:center; border:1px solid #27272a;">
+                <span title="${t.kind==='world'?'세계관 태그':'일반 태그'}">${t.kind==='world'?'🌌':'🏷️'}</span>
+                <input type="text" class="input-std" style="margin:0; flex:1; padding:8px;" value="${this.esc(t.name)}" onchange="App.updateRoomTag('${t.id}', this.value)">
                 <button class="btn-danger" style="margin:0; width:auto; padding:8px 14px;" onclick="App.deleteRoomTag('${t.id}')">삭제</button>
             </div>`).join(''); 
     },
