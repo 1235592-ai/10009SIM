@@ -6,7 +6,7 @@
     <title>10009 시뮬레이터</title>
     <meta name="theme-color" content="#0a0a0a">
     <meta name="color-scheme" content="dark">
-    <link rel="stylesheet" href="css/style.css?v=3.2">
+    <link rel="stylesheet" href="css/style.css?v=3.3">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -197,8 +197,13 @@
         <details class="acc-sec" open id="det-basic-settings">
             <summary style="color:#38bdf8;">🌌 기본 설정</summary>
             <div style="margin-top:10px;">
+                <div class="field-label">🔑 키워드 <span>(AI 생성의 재료, 최대 10개)</span></div>
                 <div id="w-keyword-list" class="keyword-area"></div>
-                <input type="text" id="w-k-input" class="input-std" placeholder="단어 입력 후 띄어쓰기(스페이스) (최대 10개)" oninput="App.handleKeywordInput(event)">
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <input type="text" id="w-k-input" class="input-std" style="margin:0;" placeholder="예: 학교, 괴담, 회귀" oninput="App.handleKeywordInput(event)" onkeydown="if(event.key==='Enter' && !event.isComposing) { event.preventDefault(); App.commitKeywordInput(); }" onblur="App.commitKeywordInput()">
+                    <button type="button" class="btn-play" style="margin:0; width:auto; padding:0 16px;" onmousedown="event.preventDefault()" onclick="App.commitKeywordInput()">추가</button>
+                </div>
+                <p class="hint">* 스페이스, 쉼표, 엔터, [추가] 중 아무거나로 등록됩니다. 여러 개를 한 번에 붙여넣어도 됩니다.</p>
                 
                 <hr style="border-color:#333; margin:15px 0;">
                 <input type="text" class="input-std" id="w-n" placeholder="세계관 이름">
@@ -308,10 +313,10 @@
     <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3>🏷️ 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')">✕</button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 🌌 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
     <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
-    <script src="js/store.js?v=3.2"></script>
-    <script src="js/api.js?v=3.2"></script>
-    <script src="js/dice.js?v=3.2"></script>
-    <script src="js/ui.js?v=3.2"></script>
-    <script src="js/app.js?v=3.2"></script>
+    <script src="js/store.js?v=3.3"></script>
+    <script src="js/api.js?v=3.3"></script>
+    <script src="js/dice.js?v=3.3"></script>
+    <script src="js/ui.js?v=3.3"></script>
+    <script src="js/app.js?v=3.3"></script>
 </body>
 </html>

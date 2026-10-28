@@ -2,6 +2,43 @@ window.UI = {
     activeModal: null,
     lastFocusedWorldInput: null, 
 
+    STREAM_DOTS: '<span class="typing-indicator inline"><span></span><span></span><span></span></span>',
+    DRAG: '<span class="drag-handle" title="끌어서 순서 변경" onclick="event.preventDefault(); event.stopPropagation();">≡</span>',
+
+    // ≡ 손잡이를 끌어 같은 묶음(같은 부모, 같은 data-sort-type) 안에서 순서를 바꾼다
+    initSortable: function() {
+        document.addEventListener('pointerdown', (e) => {
+            const handle = e.target.closest('.drag-handle'); if(!handle) return;
+            const item = handle.closest('[data-sort-type]'); if(!item) return;
+            e.preventDefault();
+            const type = item.dataset.sortType; const box = item.parentElement; const scroller = item.closest('.panel');
+            const siblings = () => [...box.children].filter(el => el.dataset && el.dataset.sortType === type);
+            const startOrder = siblings().map(el => el.dataset.sortId).join(',');
+            let lastY = e.clientY;
+            item.classList.add('sorting');
+            const move = (ev) => {
+                lastY = ev.clientY;
+                const others = siblings().filter(el => el !== item);
+                const target = others.find(el => { const rc = el.getBoundingClientRect(); return lastY < rc.top + rc.height / 2; });
+                if(target) { if(item.nextElementSibling !== target) box.insertBefore(item, target); }
+                else if(others.length) { const last = others[others.length - 1]; if(last.nextElementSibling !== item) last.after(item); }
+            };
+            let raf = null;
+            const tick = () => {
+                if(scroller) { const rc = scroller.getBoundingClientRect(); if(lastY < rc.top + 90) scroller.scrollTop -= 10; else if(lastY > rc.bottom - 60) scroller.scrollTop += 10; }
+                raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+            const up = () => {
+                document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+                cancelAnimationFrame(raf); item.classList.remove('sorting');
+                const ids = siblings().map(el => el.dataset.sortId);
+                if(ids.join(',') !== startOrder) Store.reorder(type, ids);
+            };
+            document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+        });
+    },
+
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
     
     autoResize: function(el) { 
@@ -291,9 +328,9 @@ window.UI = {
         const locOptions = `<option value="">(장소 조건 없음)</option>` + w.locations.map(loc => `<option value="${loc.id}">${this.esc(loc.name)}에서만 활성화</option>`).join('');
         
         const renderLoreItem = (l) => `
-            <div class="item-card" style="margin-bottom:8px;">
+            <div class="item-card" style="margin-bottom:8px;" data-sort-type="l" data-sort-id="${l.id}">
                 <details id="det-l-${l.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-                    <summary style="color:#eee;">📄 ${this.esc(l.keyword) || '새 지식'}</summary>
+                    <summary style="color:#eee;">${this.DRAG}📄 ${this.esc(l.keyword) || '새 지식'}</summary>
                     <div style="margin-top:10px;">
                         <select class="select-std" id="l-fld-${l.id}">
                             <option value="">(상위 분류 없음)</option>
@@ -310,9 +347,9 @@ window.UI = {
         const lfList = document.getElementById('world-lore-folders-list');
         if(lfList) {
             lfList.innerHTML = w.loreFolders.map(lf => `
-                <details class="folder-box" id="det-lf-${lf.id}">
+                <details class="folder-box" id="det-lf-${lf.id}" data-sort-type="lf" data-sort-id="${lf.id}">
                     <summary class="folder-title">
-                        <h4 style="margin:0;">📁 ${this.esc(lf.name) || '새 분류'}</h4>
+                        <h4 style="margin:0;">${this.DRAG}📁 ${this.esc(lf.name) || '새 분류'}</h4>
                         <button class="mini-btn" onclick="Store.delWorldItem('lf','${lf.id}', event)">✖</button>
                     </summary>
                     <div style="margin-top:10px;">
@@ -331,9 +368,9 @@ window.UI = {
         const locMap = { '': [] }; w.regions.forEach(reg => locMap[reg.id] = []); w.locations.forEach(loc => { if(locMap[loc.regionId]) locMap[loc.regionId].push(loc); else locMap[''].push(loc); });
         
         const renderLocItem = (loc, realIdx) => `
-            <div class="item-card" style="margin-bottom:8px;">
+            <div class="item-card" style="margin-bottom:8px;" data-sort-type="loc" data-sort-id="${loc.id}">
                 <details id="det-loc-${loc.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-                    <summary>📍 ${this.esc(loc.name) || '새 장소'}</summary>
+                    <summary>${this.DRAG}📍 ${this.esc(loc.name) || '새 장소'}</summary>
                     <div style="margin-top:10px;">
                         <input type="text" class="input-std" id="loc-n-${loc.id}" value="${this.esc(loc.name)}" placeholder="장소명">
                         <select class="select-std" id="loc-r-${loc.id}" style="margin-bottom:5px;">
@@ -350,9 +387,9 @@ window.UI = {
         const regList = document.getElementById('world-regions-list');
         if(regList) {
             regList.innerHTML = w.regions.map(reg => `
-                <details class="folder-box" id="det-reg-${reg.id}">
+                <details class="folder-box" id="det-reg-${reg.id}" data-sort-type="reg" data-sort-id="${reg.id}">
                     <summary class="folder-title">
-                        <h4 style="margin:0; color:#10b981;">🏔️ ${this.esc(reg.name) || '새 지역'}</h4>
+                        <h4 style="margin:0; color:#10b981;">${this.DRAG}🏔️ ${this.esc(reg.name) || '새 지역'}</h4>
                         <button class="mini-btn" onclick="Store.delWorldItem('reg','${reg.id}', event)">✖</button>
                     </summary>
                     <div style="margin-top:10px;">
@@ -392,8 +429,8 @@ window.UI = {
         const facNames = (c.factionIds || []).map(fid => w.factions.find(f => f.id === fid)?.name).filter(n => n);
         const multi = facNames.length > 1 ? `<span style="font-size:0.72rem; color:#8e8e9c; margin-left:6px;">${facNames.map(n => this.esc(n)).join(' · ')}</span>` : '';
         return `
-        <details class="item-card card-char ${isMy?'my-char':''} ${isNpc?'active-npc':''} ${c.isHidden?'hidden':''}" id="det-c-${c.id}-${key}" data-cid="${c.id}" data-my="${isMy?1:0}" data-npc="${isNpc?1:0}" ontoggle="UI.onCharToggle(this)">
-            <summary><div>${this.esc(c.keyword) || '새 인물'} ${roleTag}${multi}</div></summary>
+        <details class="item-card card-char ${isMy?'my-char':''} ${isNpc?'active-npc':''} ${c.isHidden?'hidden':''}" id="det-c-${c.id}-${key}" data-cid="${c.id}" data-sort-type="c" data-sort-id="${c.id}" data-my="${isMy?1:0}" data-npc="${isNpc?1:0}" ontoggle="UI.onCharToggle(this)">
+            <summary><div>${key === 'my' ? '' : this.DRAG}${this.esc(c.keyword) || '새 인물'} ${roleTag}${multi}</div></summary>
             <div class="char-body"></div>
         </details>`;
     },
@@ -525,9 +562,9 @@ window.UI = {
         const groups = w.factions.map(f => {
             const members = others.filter(c => (c.factionIds || []).includes(f.id));
             return `
-            <details class="folder-box fac-group" id="det-fg-${f.id}">
+            <details class="folder-box fac-group" id="det-fg-${f.id}" data-sort-type="f" data-sort-id="${f.id}">
                 <summary class="folder-title">
-                    <h4 style="margin:0; color:#60a5fa;">🚩 ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
+                    <h4 style="margin:0; color:#60a5fa;">${this.DRAG}🚩 ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
                     <button class="mini-btn" title="세력 삭제" onclick="Store.delWorldItem('f','${f.id}', event)">✖</button>
                 </summary>
                 <div style="margin-top:10px;">

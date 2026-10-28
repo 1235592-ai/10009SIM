@@ -40,6 +40,7 @@ window.App = {
         document.getElementById('world-panel').addEventListener('focusin', (e) => this.onPanelFocus(e, 'magic-btn'));
         document.getElementById('char-panel').addEventListener('focusin', (e) => this.onPanelFocus(e, 'magic-btn-char'));
 
+        UI.initSortable();
         document.getElementById('lobby-container').classList.remove('hidden');
         UI.renderScenarioList(); UI.renderWorldTemplateList(); UI.renderSafetyUI();
     },
@@ -75,30 +76,37 @@ window.App = {
         }
     },
 
+    // 스페이스나 쉼표가 들어오면 그 앞까지를 키워드로 등록하고, 마지막 조각은 입력칸에 남긴다
     handleKeywordInput: function(e) {
         const input = e.target;
-        let val = input.value;
-        if (val.includes(' ')) {
-            let k = val.replace(/\s/g, '').replace(/#/g, '').trim();
-            if(k) {
-                const w = Store.getTargetWorld();
-                if(!w.keywords) w.keywords = [];
-                if(w.keywords.length >= 10) { 
-                    alert("키워드는 최대 10개까지 등록 가능합니다."); 
-                    input.value = ''; 
-                    return; 
-                }
-                if(!w.keywords.includes(k)) w.keywords.push(k);
-                Store.forceSave(); UI.renderKeywords();
-            }
-            input.value = '';
-        }
+        if (!/[\s,，]/.test(input.value)) return;
+        const parts = input.value.split(/[\s,，]+/);
+        const rest = parts.pop();
+        this.addKeywords(parts);
+        input.value = rest;
+    },
+    commitKeywordInput: function() {
+        const input = document.getElementById('w-k-input'); if(!input || !input.value.trim()) return;
+        this.addKeywords(input.value.split(/[\s,，]+/));
+        input.value = '';
+    },
+    addKeywords: function(list) {
+        const w = Store.getTargetWorld(); if(!w) return;
+        if(!w.keywords) w.keywords = [];
+        let full = false;
+        list.map(k => k.replace(/#/g, '').trim()).filter(k => k).forEach(k => {
+            if(w.keywords.includes(k)) return;
+            if(w.keywords.length >= 10) { full = true; return; }
+            w.keywords.push(k);
+        });
+        Store.forceSave(); UI.renderKeywords();
+        if(full) alert("키워드는 최대 10개까지 등록 가능합니다.");
     },
 
     runWorldSketch: async function() {
         if(!Store.state.apiKey) return alert("API 키를 설정해주세요.");
         const w = Store.getTargetWorld();
-        if(!w.keywords || w.keywords.length === 0) return alert("먼저 상단에 키워드를 1개 이상 입력해주세요!");
+        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 🔑 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
 
         const hasContent = w.name || w.prompt || w.factions.length > 0 || w.lores.length > 0 || w.locations.length > 0;
         if(hasContent) {
@@ -139,7 +147,7 @@ window.App = {
     runMagicGenerator: async function() {
         if(!Store.state.apiKey) return alert("API 키를 설정해주세요.");
         const w = Store.getTargetWorld();
-        if(!w.keywords || w.keywords.length === 0) return alert("먼저 상단에 키워드를 1개 이상 입력해주세요!");
+        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 🔑 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
         
         const target = UI.lastFocusedWorldInput;
         if(!target) return;
@@ -324,13 +332,14 @@ window.App = {
         let fullText = "";
         try { 
             await API.streamLLM(contents, sysPrompt, (chunk) => { 
-                fullText += chunk; msgObj.variants[msgObj.currentVariant] = fullText; textEl.innerHTML = UI.formatMsg(fullText, 'ai'); 
+                fullText += chunk; msgObj.variants[msgObj.currentVariant] = fullText; textEl.innerHTML = UI.formatMsg(fullText, 'ai') + UI.STREAM_DOTS; 
             }); 
         } 
         catch(e) { 
             if(!fullText.trim()) { msgObj.variants[msgObj.currentVariant] = "[오류] " + e.message; textEl.innerHTML = UI.formatMsg(msgObj.variants[msgObj.currentVariant], 'ai'); } 
         } 
         finally { 
+            if(fullText.trim()) textEl.innerHTML = UI.formatMsg(fullText, 'ai');
             msgDiv.appendChild(UI.createCtrls(tIdx)); 
             
             if (!r.transientCharIds) r.transientCharIds = {};

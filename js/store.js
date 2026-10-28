@@ -183,6 +183,23 @@ window.Store = {
         if(document.getElementById('char-panel').classList.contains('open')) this.syncCharDOM();
     },
 
+    // 같은 묶음 안에서 끌어 옮긴 순서(ids)를 반영한다. 다른 항목의 자리는 그대로 둔다.
+    reorder: function(type, ids) {
+        const w = this.getTargetWorld(); if(!w) return;
+        const key = { f: 'factions', lf: 'loreFolders', l: 'lores', reg: 'regions', loc: 'locations', c: 'characters' }[type]; if(!key) return;
+        this.syncOpenPanels();
+        const arr = w[key];
+        const r = this.state.activeRoomId ? this.getActiveRoom() : null;
+        // 현재 위치는 순번으로 저장돼 있어서, 장소 순서가 바뀌어도 같은 장소를 가리키도록 다시 맞춘다
+        const curLocId = (type === 'loc' && r) ? w.locations[r.currentLocIdx]?.id : null;
+        const slots = arr.map((x, i) => ids.includes(x.id) ? i : -1).filter(i => i >= 0);
+        const moved = ids.map(id => arr.find(x => x.id === id)).filter(x => x);
+        if(moved.length !== slots.length) return;
+        slots.forEach((slot, k) => { arr[slot] = moved[k]; });
+        if(curLocId) r.currentLocIdx = w.locations.findIndex(x => x.id === curLocId);
+        this.forceSave(); UI.refreshOpenPanel();
+    },
+
     saveWorld: function() { this.syncWorldDOM(); this.forceSave(); UI.renderWorld(); UI.showToast("세계관이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); else UI.renderWorldTemplateList(); },
     
     removeKeyword: function(k) { const w = this.getTargetWorld(); if(w && w.keywords) { w.keywords = w.keywords.filter(x => x !== k); this.forceSave(); UI.renderKeywords(); UI.renderWorld(); } },
