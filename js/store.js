@@ -190,6 +190,7 @@ window.Store = {
         w.prompt = document.getElementById('w-d')?.value ?? w.prompt; 
         w.bgUrl = document.getElementById('w-url')?.value ?? w.bgUrl;
         w.rules = document.getElementById('w-rules')?.value ?? w.rules;
+        if(document.getElementById('w-net-community')) w.netRules = { community: document.getElementById('w-net-community').value, darkweb: document.getElementById('w-net-darkweb').value, inbox: document.getElementById('w-net-inbox').value };
         
         w.loreFolders.forEach(lf => { lf.name = document.getElementById(`lf-n-${lf.id}`)?.value ?? lf.name; lf.desc = document.getElementById(`lf-d-${lf.id}`)?.value ?? lf.desc; });
         w.lores.forEach(l => { l.keyword = document.getElementById(`l-n-${l.id}`)?.value ?? l.keyword; l.desc = document.getElementById(`l-d-${l.id}`)?.value ?? l.desc; l.folderId = document.getElementById(`l-fld-${l.id}`)?.value ?? l.folderId; l.triggerLocId = document.getElementById(`l-trig-${l.id}`)?.value ?? l.triggerLocId; });

@@ -73,6 +73,7 @@ h3 { font-size: 1rem; margin-bottom: 10px; }
     transition: all 0.3s;
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     max-width: calc(100vw - 32px);
+    pointer-events: none;
     text-align: center;
 }
 .sys-noti.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
@@ -549,7 +550,8 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
 .net-section { font-weight: 800; font-size: 0.85rem; color: var(--text-sub); margin: 14px 0 6px; }
 .net-thread { padding: 0 12px 8px; font-size: 0.9rem; line-height: 1.6; }
 .net-date { text-align: center; color: var(--text-muted); font-size: 0.78rem; margin: 8px 0; }
-.net-msg { margin-bottom: 4px; }
+.net-msg { margin-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+.net-msg .mini-btn { font-size: 0.85rem; opacity: 0.5; flex-shrink: 0; }
 .net-reply { display: flex; gap: 8px; padding: 0 12px 12px; align-items: stretch; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; color: var(--text-sub); }
 

@@ -39,6 +39,13 @@ window.UI = {
         });
     },
 
+    fillHunterNetExample: function() {
+        const keys = ['community', 'darkweb', 'inbox'];
+        if(keys.some(k => document.getElementById(`w-net-${k}`).value.trim()) && !confirm("이미 적힌 내용을 헌터 세계관 예시로 덮어쓰시겠습니까?")) return;
+        keys.forEach(k => { const el = document.getElementById(`w-net-${k}`); el.value = Net.HUNTER_EXAMPLE[k]; this.autoResize(el); });
+        this.showToast("예시를 넣었습니다. [💾 변경사항 저장]을 눌러야 저장됩니다.");
+    },
+
     setBackground: function(url) { const bg = document.getElementById('app-bg'); if(bg) bg.style.backgroundImage = url ? `url('${url}')` : 'none'; },
 
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
@@ -275,6 +282,8 @@ window.UI = {
         const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; 
         const wurlEl = document.getElementById('w-url'); if(wurlEl) wurlEl.value = w.bgUrl || '';
         const wrEl = document.getElementById('w-rules'); if(wrEl) { wrEl.value = w.rules || ''; setTimeout(() => this.autoResize(wrEl), 10); }
+        const nr = w.netRules || {};
+        ['community', 'darkweb', 'inbox'].forEach(k => { const el = document.getElementById(`w-net-${k}`); if(el) { el.value = nr[k] || ''; setTimeout(() => this.autoResize(el), 10); } });
         
         const folderMap = { '': [] }; w.loreFolders.forEach(lf => folderMap[lf.id] = []); w.lores.forEach(l => { if(folderMap[l.folderId]) folderMap[l.folderId].push(l); else folderMap[''].push(l); });
         const locOptions = `<option value="">(장소 조건 없음)</option>` + w.locations.map(loc => `<option value="${loc.id}">${this.esc(loc.name)}에서만 활성화</option>`).join('');
