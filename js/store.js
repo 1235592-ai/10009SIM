@@ -1,7 +1,7 @@
 window.Store = {
     VERSION: 100,
     state: {
-        apiKey: '', modelName: 'gemini-3.1-flash-lite-preview', lobbyBgUrl: '',
+        provider: 'gemini', apiKey: '', modelName: 'gemini-3.1-flash-lite-preview', baseUrl: '', providerConfigs: {}, globalRules: '', lobbyBgUrl: '',
         safety: { violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false },
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
@@ -30,8 +30,12 @@ window.Store = {
         
         const master = await this.dbGet('master', 'main');
         if (master) {
+            this.state.provider = master.provider || 'gemini';
             this.state.apiKey = master.apiKey || ''; 
-            this.state.modelName = master.modelName || 'gemini-3.1-flash-lite-preview';
+            this.state.modelName = master.modelName || API.PROVIDERS[this.state.provider]?.defaultModel || 'gemini-3.1-flash-lite-preview';
+            this.state.baseUrl = master.baseUrl || '';
+            this.state.providerConfigs = master.providerConfigs || {};
+            this.state.globalRules = master.globalRules || '';
             this.state.lobbyBgUrl = master.lobbyBgUrl || '';
             this.state.safety = Object.assign({ violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false }, master.safety || {}); 
             this.state.roomTags = master.roomTags || [];
@@ -59,7 +63,7 @@ window.Store = {
         if(this.saveTimeout) clearTimeout(this.saveTimeout);
         this.saveTimeout = setTimeout(() => {
             if(!this.db) return;
-            const master = { id: 'main', apiKey: this.state.apiKey, modelName: this.state.modelName, safety: this.state.safety, roomTags: this.state.roomTags, lobbyBgUrl: this.state.lobbyBgUrl };
+            const master = { id: 'main', ...this.masterSettings() };
             try {
                 const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
                 tx.objectStore('master').put(master);
@@ -75,18 +79,53 @@ window.Store = {
         }, 500);
     },
     
+    masterSettings: function() {
+        const s = this.state;
+        return { provider: s.provider, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
+    },
+
+    // 현재 입력된 키/모델을 서비스별로 따로 보관해 두어, 서비스를 바꿔도 이전 키가 지워지지 않게 한다.
+    stashProviderConfig: function() {
+        this.state.providerConfigs[this.state.provider] = { apiKey: this.state.apiKey, modelName: this.state.modelName, baseUrl: this.state.baseUrl };
+    },
+
     saveSettings: function() { 
-        this.state.apiKey = document.getElementById('set-api-key').value; 
-        this.state.modelName = document.getElementById('set-model-name').value || 'gemini-3.1-flash-lite-preview'; 
+        this.state.apiKey = document.getElementById('set-api-key').value.trim(); 
+        this.state.modelName = document.getElementById('set-model-name').value.trim() || API.PROVIDERS[API.getProvider()].defaultModel; 
+        this.state.baseUrl = document.getElementById('set-base-url').value.trim();
         this.state.lobbyBgUrl = document.getElementById('set-lobby-bg').value.trim();
+        this.stashProviderConfig();
         this.forceSave(); 
         if(!this.state.activeRoomId) { document.body.style.backgroundImage = this.state.lobbyBgUrl ? `url('${this.state.lobbyBgUrl}')` : 'none'; }
-        const modSel = document.getElementById('model-preset-sel');
-        if(modSel) {
-            const opts = Array.from(modSel.options).map(o => o.value);
-            modSel.value = opts.includes(this.state.modelName) ? this.state.modelName : '';
-        }
+        UI.renderApiSettings();
         UI.showToast("설정이 저장되었습니다."); 
+    },
+
+    changeProvider: function(provider) {
+        this.stashProviderConfig();
+        this.state.provider = provider;
+        const cfg = this.state.providerConfigs[provider] || {};
+        this.state.apiKey = cfg.apiKey || '';
+        this.state.modelName = cfg.modelName || API.PROVIDERS[provider].defaultModel;
+        this.state.baseUrl = cfg.baseUrl || '';
+        this.stashProviderConfig();
+        this.forceSave();
+        UI.renderApiSettings();
+        UI.showToast(`${API.PROVIDERS[provider].label}(으)로 전환했습니다.`);
+    },
+
+    saveGlobalRules: function() {
+        const val = document.getElementById('set-global-rules').value;
+        this.state.globalRules = val.trim() === API.DEFAULT_RULES.trim() ? '' : val;
+        this.forceSave();
+        UI.showToast("전체 서술 지침이 저장되었습니다.");
+    },
+    resetGlobalRules: function() {
+        if(!confirm("전체 서술 지침을 기본값으로 되돌리시겠습니까?\n(직접 수정한 내용은 사라집니다)")) return;
+        this.state.globalRules = '';
+        document.getElementById('set-global-rules').value = API.DEFAULT_RULES;
+        this.forceSave();
+        UI.showToast("기본 지침으로 되돌렸습니다.");
     },
     
     getActiveRoom: function() { return this.state.rooms.find(r => r.id === this.state.activeRoomId); },
@@ -149,7 +188,7 @@ window.Store = {
             }
         });
     },
-    saveCharacters: function() { this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.showToast("인물 설정이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); },
+    saveCharacters: function() { this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.showToast("인물 설정이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); else UI.renderWorldTemplateList(); },
     addCharacter: function() { const w = this.getTargetWorld(); this.syncCharDOM(); w.characters.push({ id:'c_'+Date.now(), keyword:'', desc:'', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:false }); this.forceSave(); UI.renderCharacters(); },
     delChar: function(id) { if(!confirm("인물을 삭제하시겠습니까?")) return; const w = this.getTargetWorld(); this.syncCharDOM(); w.characters = w.characters.filter(c => c.id !== id); const r = this.getActiveRoom(); if(r) { r.activeCharIds = r.activeCharIds.filter(cid => cid !== id); if(r.myCharId === id) r.myCharId = null; } this.forceSave(); UI.renderCharacters(); },
     toggleActiveNpc: function(id) { const r = this.getActiveRoom(); if(!r) return; this.syncCharDOM(); if(r.activeCharIds.includes(id)) r.activeCharIds = r.activeCharIds.filter(x => x !== id); else r.activeCharIds.push(id); this.forceSave(); UI.renderCharacters(); App.loadActiveRoom(); },
@@ -166,13 +205,13 @@ window.Store = {
 
     exportData: function() { 
         if(!confirm("모든 설정과 시나리오 데이터를 백업 파일(JSON)로 다운로드하시겠습니까?")) return;
-        const exp = { apiKey: this.state.apiKey, modelName: this.state.modelName, safety: this.state.safety, roomTags: this.state.roomTags, lobbyBgUrl: this.state.lobbyBgUrl, worlds: this.state.worlds, rooms: this.state.rooms }; 
+        const exp = { ...this.masterSettings(), worlds: this.state.worlds, rooms: this.state.rooms }; 
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exp)], {type:'application/json'})); a.download = `10009SIM_Backup_${Date.now()}.json`; a.click(); 
     },
     exportChatToTxt: function() { 
         if(!confirm("현재 시나리오의 대화 로그를 텍스트 파일(TXT)로 다운로드하시겠습니까?")) return;
-        const r = this.getActiveRoom(); if(!r) return; const w = r.worldInstance; let txt = `${r.name} - 로그\\n\\n`; 
-        r.history.forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\\n${m.variants[m.currentVariant]}\\n\\n`; }); 
+        const r = this.getActiveRoom(); if(!r) return; const w = r.worldInstance; let txt = `${r.name} - 로그\n\n`; 
+        r.history.forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); 
         const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${r.name}.txt`; a.click(); 
     },
     importData: function(e) { 
@@ -185,7 +224,7 @@ window.Store = {
                 
                 this.db = await this.openDB();
                 const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
-                tx.objectStore('master').put({id:'main', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.1-flash-lite-preview', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
+                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.1-flash-lite-preview', baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
                 if(st.worlds) { st.worlds.forEach(w => { if(!w.keywords) w.keywords=[]; tx.objectStore('worlds').put(w); }); }
                 if(st.rooms) st.rooms.forEach(rm => tx.objectStore('rooms').put(rm));
                 tx.oncomplete = () => { alert("복원 완료! 앱을 재시작합니다."); window.location.reload(); };

@@ -7,7 +7,7 @@ window.UI = {
     autoResize: function(el) { 
         if (!el) return; 
         el.style.height = '1px'; 
-        const maxH = 300; 
+        const maxH = el.classList.contains('edit-area') ? Math.max(300, Math.round(window.innerHeight * 0.65)) : 300; 
         if (el.scrollHeight >= maxH) { el.style.height = maxH + 'px'; el.style.overflowY = 'auto'; } 
         else { el.style.height = el.scrollHeight + 'px'; el.style.overflowY = 'hidden'; }
         if (el.id === 'msg-input') this.scrollToBottom(true); 
@@ -123,8 +123,27 @@ window.UI = {
     },
 
     syncPanelsBeforeClose: function() { 
-        if(document.getElementById('world-panel').classList.contains('open')) Store.syncWorldDOM(); 
-        if(document.getElementById('char-panel').classList.contains('open')) Store.syncCharDOM(); 
+        const worldOpen = document.getElementById('world-panel').classList.contains('open');
+        const charOpen = document.getElementById('char-panel').classList.contains('open');
+        if(worldOpen) Store.syncWorldDOM(); 
+        if(charOpen) Store.syncCharDOM(); 
+        if(worldOpen || charOpen) { Store.forceSave(); if(!Store.state.activeRoomId) this.renderWorldTemplateList(); }
+    },
+
+    renderApiSettings: function() {
+        const provider = API.getProvider(); const info = API.PROVIDERS[provider];
+        const provSel = document.getElementById('set-provider');
+        if(provSel) provSel.innerHTML = Object.entries(API.PROVIDERS).map(([k, p]) => `<option value="${k}" ${k===provider?'selected':''}>${this.esc(p.label)}</option>`).join('');
+        const keyEl = document.getElementById('set-api-key'); if(keyEl) { keyEl.value = Store.state.apiKey || ''; keyEl.placeholder = info.keyHint; }
+        const urlEl = document.getElementById('set-base-url'); if(urlEl) { urlEl.value = Store.state.baseUrl || ''; urlEl.style.display = info.baseUrl ? 'block' : 'none'; }
+        const modEl = document.getElementById('set-model-name'); if(modEl) modEl.value = Store.state.modelName || '';
+        const modSel = document.getElementById('model-preset-sel');
+        if(modSel) {
+            modSel.style.display = info.models.length ? 'block' : 'none';
+            modSel.innerHTML = `<option value="">▼ 추천 모델 선택</option>` + info.models.map(([id, desc]) => `<option value="${id}">${id} (${desc})</option>`).join('');
+            modSel.value = info.models.some(([id]) => id === Store.state.modelName) ? Store.state.modelName : '';
+        }
+        const hintEl = document.getElementById('provider-hint'); if(hintEl) hintEl.innerText = `* ${info.hint}\n* API 키는 이 기기 브라우저에만 저장되며, 전체 백업 파일에는 포함됩니다.`;
     },
     
     togglePanel: function(id) {
@@ -194,24 +213,24 @@ window.UI = {
             
             const tagsHtml = r.tagIds.map(tId => { 
                 const tObj = Store.state.roomTags.find(x => x.id === tId); 
-                return tObj ? `<span class="lobby-card-tag" style="background:#7c3aed;">${this.esc(tObj.name)} <button type="button" style="background:none;border:none;color:white;cursor:pointer;padding:0 2px;" onclick="App.removeRoomTag('${r.id}', '${tId}', event)">×</button></span> ` : ''; 
+                return tObj ? `<span class="lobby-card-tag" style="background:#7c3aed;">${this.esc(tObj.name)} <button type="button" onclick="App.removeRoomTag('${r.id}', '${tId}', event)">×</button></span>` : ''; 
             }).join('');
             
             const addTagSelect = Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).length > 0 ? 
-                `<select class="select-std" style="margin-top:6px; padding:4px; font-size:0.75rem; width:auto; display:inline-block;" onclick="event.stopPropagation()" onchange="App.addRoomTag('${r.id}', this, event)"><option value="">+ 태그</option>${Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).map(t => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}</select>` : '';
+                `<select class="select-std tag-add-sel" onclick="event.stopPropagation()" onchange="App.addRoomTag('${r.id}', this, event)"><option value="">+ 태그</option>${Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).map(t => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}</select>` : '';
             
             return `
             <div class="lobby-card ${isRecent ? 'recent' : ''}">
-                ${isRecent ? '<span class="lobby-card-tag" style="background:#dc2626;">🔥 이어하기</span> ' : ''}
-                <div style="font-weight:bold; font-size:1.1rem; color:#fff;">${this.esc(r.name)}</div>
-                <div style="font-size:0.8rem; color:#aaa; margin-top:4px;">🌌 [${this.esc(r.worldInstance.name)}] | 턴: ${r.history.length}</div>
-                <div style="margin-top:8px;">${tagsHtml}${addTagSelect}</div>
+                ${isRecent ? '<span class="lobby-card-tag" style="background:#dc2626;">🔥 이어하기</span>' : ''}
+                <div class="lobby-card-title">${this.esc(r.name)}</div>
+                <div class="lobby-card-meta">🌌 ${this.esc(r.worldInstance.name)} · 턴 ${r.history.length}</div>
+                <div class="lobby-card-tags">${tagsHtml}${addTagSelect}</div>
                 <div class="card-btns">
-                    <button class="btn-play" onclick="App.enterRoom('${r.id}')">▶ 입장</button>
-                    <button class="btn-play" style="background:#059669; max-width:40px;" onclick="App.extractTemplate('${r.id}')" title="템플릿으로 추출">🌌</button>
-                    <button class="btn-play" style="background:#27272a; max-width:40px;" onclick="App.editRoomInfo('${r.id}')">✏️</button>
-                    <button class="btn-play" style="background:#27272a; max-width:40px;" onclick="App.cloneRoom('${r.id}')">📋</button>
-                    <button class="btn-play" style="background:#7f1d1d; max-width:40px;" onclick="App.deleteRoom('${r.id}')">✖</button>
+                    <button class="btn-play btn-enter" onclick="App.enterRoom('${r.id}')">▶ 입장</button>
+                    <button class="btn-icon" onclick="App.extractTemplate('${r.id}')" title="템플릿으로 추출">🌌</button>
+                    <button class="btn-icon" onclick="App.editRoomInfo('${r.id}')" title="이름 수정">✏️</button>
+                    <button class="btn-icon" onclick="App.cloneRoom('${r.id}')" title="새 회차로 복제">📋</button>
+                    <button class="btn-icon danger" onclick="App.deleteRoom('${r.id}')" title="삭제">✖</button>
                 </div>
             </div>`;
         }).join('');
@@ -222,12 +241,13 @@ window.UI = {
     
     renderWorldTemplateList: function() { 
         document.getElementById('world-template-list').innerHTML = Store.state.worlds.map(w => `
-        <div class="lobby-card" style="border-left-color:#059669;">
-            <div style="font-weight:bold; font-size:1.1rem; color:#fff;">${this.esc(w.name)}</div>
-            <div style="font-size:0.8rem; color:#aaa; margin-top:4px;">${w.characters.length - 1}명 / 🗺️ ${w.regions.length}지역 / 📍 ${w.locations.length}장소</div>
+        <div class="lobby-card world">
+            <div class="lobby-card-title">${this.esc(w.name)}</div>
+            <div class="lobby-card-meta">👤 ${w.characters.filter(c => c.id !== 'sys').length}명 · 🗺️ ${w.regions.length}지역 · 📍 ${w.locations.length}장소</div>
             <div class="card-btns">
-                <button class="btn-play" style="background:#059669;" onclick="App.editWorldTemplate('${w.id}')">🛠 템플릿 편집</button>
-                <button class="btn-play" style="background:#27272a; max-width:40px;" onclick="Store.deleteWorldTemplate('${w.id}')">✖</button>
+                <button class="btn-play btn-world" onclick="App.editWorldTemplate('${w.id}')">🛠 세계관</button>
+                <button class="btn-play" style="background:var(--surface-3); color:#fff;" onclick="App.editWorldChars('${w.id}')">👤 인물</button>
+                <button class="btn-icon danger" onclick="Store.deleteWorldTemplate('${w.id}')" title="템플릿 삭제">✖</button>
             </div>
         </div>`).join(''); 
     },
@@ -369,6 +389,7 @@ window.UI = {
     },
     
     buildCharHTML: function(c, isMy, isNpc, w) {
+        if(!c.stats) c.stats = []; if(!c.reputation) c.reputation = []; if(!c.factionIds) c.factionIds = [];
         const statHtml = c.stats.map((s, sIdx) => `
             <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center;">
                 <label style="font-size:0.8rem; color:#a1a1aa; cursor:pointer;">
@@ -451,7 +472,7 @@ window.UI = {
     
     renderCharacters: function() {
         const w = Store.getTargetWorld(); const r = Store.state.activeRoomId ? Store.getActiveRoom() : null; const filterVal = document.getElementById('char-filter-sel').value;
-        const filterFn = c => { if(filterVal === 'all') return true; if(filterVal === 'none') return !c.factionIds || c.factionIds.length === 0; return c.factionIds.includes(filterVal); };
+        const filterFn = c => { if(filterVal === 'all') return true; if(filterVal === 'none') return !c.factionIds || c.factionIds.length === 0; return (c.factionIds || []).includes(filterVal); };
         
         const panel = document.getElementById('char-panel');
         const st = panel ? panel.scrollTop : 0; 
@@ -625,17 +646,20 @@ window.UI = {
     
     enterEdit: function(idx) { 
         const r = Store.getActiveRoom(); const m = r.history[idx]; const msgDiv = document.querySelector(`.message[data-idx="${idx}"]`); if(!msgDiv) return;
-        const textEl = msgDiv.querySelector('.msg-text'); const ctrlEl = msgDiv.querySelector('.msg-controls'); textEl.style.display = 'none'; ctrlEl.style.display = 'none';
+        if(msgDiv.classList.contains('editing')) return;
+        const textEl = msgDiv.querySelector('.msg-text'); const ctrlEl = msgDiv.querySelector('.msg-controls'); textEl.style.display = 'none'; if(ctrlEl) ctrlEl.style.display = 'none';
+        msgDiv.classList.add('editing');
         
-        const editArea = document.createElement('textarea'); editArea.className = 'area-std auto-resize'; editArea.value = m.variants[m.currentVariant]; editArea.oninput = () => { this.autoResize(editArea); };
+        const editArea = document.createElement('textarea'); editArea.className = 'edit-area auto-resize'; editArea.value = m.variants[m.currentVariant]; editArea.oninput = () => { this.autoResize(editArea); };
         
-        const btnWrap = document.createElement('div'); btnWrap.style.display = 'flex'; btnWrap.style.gap = '8px'; btnWrap.style.marginTop = '8px';
-        const sBtn = document.createElement('button'); sBtn.className = 'btn-main'; sBtn.innerText = '저장'; sBtn.style.marginTop = '0';
-        const cBtn = document.createElement('button'); cBtn.className = 'btn-ghost'; cBtn.innerText = '취소'; cBtn.style.marginBottom = '0';
+        const btnWrap = document.createElement('div'); btnWrap.className = 'edit-actions';
+        const sBtn = document.createElement('button'); sBtn.className = 'btn-main'; sBtn.innerText = '저장';
+        const cBtn = document.createElement('button'); cBtn.className = 'btn-ghost'; cBtn.innerText = '취소';
         
-        sBtn.onclick = () => { if(!confirm("수정하시겠습니까?")) return; if(editArea.value.trim()){ m.variants[m.currentVariant] = editArea.value; Store.forceSave(); App.loadActiveRoom(true); } };
-        cBtn.onclick = () => { App.loadActiveRoom(true); }; 
-        btnWrap.append(sBtn, cBtn); msgDiv.append(editArea, btnWrap); setTimeout(() => this.autoResize(editArea), 10);
+        sBtn.onclick = () => { if(!editArea.value.trim()) return alert("내용이 비어 있습니다."); m.variants[m.currentVariant] = editArea.value; Store.forceSave(); App.loadActiveRoom(true); UI.showToast("수정되었습니다."); };
+        cBtn.onclick = () => { if(editArea.value !== m.variants[m.currentVariant] && !confirm("수정한 내용을 버리시겠습니까?")) return; App.loadActiveRoom(true); }; 
+        btnWrap.append(sBtn, cBtn); msgDiv.append(editArea, btnWrap);
+        setTimeout(() => { this.autoResize(editArea); editArea.focus(); editArea.setSelectionRange(0, 0); editArea.scrollTop = 0; msgDiv.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 10);
     },
 
     toggleCustomNet: function(val) {

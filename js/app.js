@@ -13,9 +13,8 @@ window.App = {
         await Store.init();
         
         const bgEl = document.getElementById('set-lobby-bg'); if(bgEl) bgEl.value = Store.state.lobbyBgUrl || '';
-        const apiEl = document.getElementById('set-api-key'); if(apiEl) apiEl.value = Store.state.apiKey || '';
-        const modEl = document.getElementById('set-model-name'); if(modEl) modEl.value = Store.state.modelName || 'gemini-3.1-flash-lite-preview';
-        const modSel = document.getElementById('model-preset-sel'); if(modSel) { const opts = Array.from(modSel.options).map(o => o.value); modSel.value = opts.includes(Store.state.modelName) ? Store.state.modelName : ''; }
+        UI.renderApiSettings();
+        const rulesEl = document.getElementById('set-global-rules'); if(rulesEl) rulesEl.value = API.getRules();
 
         history.replaceState({ page: 'lobby' }, "");
         document.getElementById('game-container').style.display = 'none';
@@ -270,6 +269,7 @@ window.App = {
     exitToLobby: function() { if(this.isGenerating) return; history.back(); },
     
     editWorldTemplate: function(id) { Store.state.activeRoomId = null; Store.state.activeWorldId = id; UI.togglePanel('world-panel'); },
+    editWorldChars: function(id) { Store.state.activeRoomId = null; Store.state.activeWorldId = id; UI.togglePanel('char-panel'); },
 
     loadActiveRoom: function(preserveScroll = false) {
         const r = Store.getActiveRoom(); if(!r) return; const w = r.worldInstance;
@@ -321,7 +321,7 @@ window.App = {
 
         let fullText = "";
         try { 
-            await API.streamGemini(contents, sysPrompt, (chunk) => { 
+            await API.streamLLM(contents, sysPrompt, (chunk) => { 
                 fullText += chunk; msgObj.variants[msgObj.currentVariant] = fullText; textEl.innerHTML = UI.formatMsg(fullText, 'ai'); 
             }); 
         } 
@@ -376,7 +376,7 @@ window.App = {
 3. 미해결 떡밥/약속/예고된 사건
 간결한 개조식으로 작성할 것.`;
 
-            const text = await API.callGemini([{role:'user', parts:[{text: `[대화 내역]\n\n${histText}`}]}], sysPrompt); 
+            const text = await API.callLLM([{role:'user', parts:[{text: `[대화 내역]\n\n${histText}`}]}], sysPrompt); 
             
             let mem = r.memory || ""; 
             mem += (mem ? "\n\n" : "") + "[자동 요약]\n" + text; 
@@ -406,7 +406,7 @@ window.App = {
         if (cStatStr) {
             UI.showToast("📊 1/2: 스탯 분석 중...");
             try {
-                const text = await API.callGemini([{role:'user',parts:[{text:`스탯 증감 추정 후 JSON 배열로만 반환해. 포맷: [{"charName":"이름", "statName":"체력", "newValue":최종}]\n[현재]\n${cStatStr}\n[텍스트] ${msg}`}]}], null, {temp:0.1, jsonMode:true});
+                const text = await API.callLLM([{role:'user',parts:[{text:`스탯 증감 추정 후 JSON 배열로만 반환해. 포맷: [{"charName":"이름", "statName":"체력", "newValue":최종}]\n[현재]\n${cStatStr}\n[텍스트] ${msg}`}]}], null, {temp:0.1, jsonMode:true});
                 API.parseAIJsonRaw(text).forEach(item => { let c = tChars.find(x => x.keyword === item.charName || x.keyword.includes(item.charName)); if(c) { const s = c.stats.find(x => x.n === item.statName); if(s && confirm(`[스탯 변동]\n${c.keyword}의 [${s.n}]을 ${s.v} -> ${item.newValue} 변경?`)) { s.v = item.newValue; statChanged = true; } } });
             } catch(e) {}
         }
@@ -414,7 +414,7 @@ window.App = {
         if(cRepStr) {
             UI.showToast("⚖️ 2/2: 평판 분석 중...");
             try {
-                const text = await API.callGemini([{role:'user',parts:[{text:`평판 변동 추정 후 JSON 배열로만 반환해. 포맷: [{"charName":"이름", "repId":"ID", "change":-1,0,1}]\n좌:-1, 우:1\n[현재]\n${cRepStr}\n[텍스트] ${msg}`}]}], null, {temp:0.1, jsonMode:true});
+                const text = await API.callLLM([{role:'user',parts:[{text:`평판 변동 추정 후 JSON 배열로만 반환해. 포맷: [{"charName":"이름", "repId":"ID", "change":-1,0,1}]\n좌:-1, 우:1\n[현재]\n${cRepStr}\n[텍스트] ${msg}`}]}], null, {temp:0.1, jsonMode:true});
                 API.parseAIJsonRaw(text).forEach(item => { let c = tChars.find(x => x.keyword === item.charName || x.keyword.includes(item.charName)); if(c) { const rep = c.reputation.find(x => x.id === item.repId); if(rep && item.change !== 0) { let newVal = Math.max(-5, Math.min(5, rep.value + item.change)); const dirStr = item.change > 0 ? `[${rep.rightName||'우측'}] 방향으로 +${item.change}` : `[${rep.leftName||'좌측'}] 방향으로 ${item.change}`; if(confirm(`[성향 변동]\n${c.keyword} 성향이 ${dirStr} 된 듯.\n${rep.value} -> ${newVal} 적용?`)) { rep.value = newVal; repChanged = true; } } } });
             } catch(e) {}
         }
