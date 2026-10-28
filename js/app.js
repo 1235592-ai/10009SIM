@@ -19,24 +19,17 @@ window.App = {
         history.replaceState({ page: 'lobby' }, "");
         document.getElementById('game-container').style.display = 'none';
         document.getElementById('lobby-container').style.display = 'block'; 
-        document.body.style.backgroundImage = Store.state.lobbyBgUrl ? `url('${Store.state.lobbyBgUrl}')` : 'none';
+        UI.setBackground(Store.state.lobbyBgUrl);
 
         window.addEventListener('beforeunload', () => { Store.forceSave(); });
         
         window.addEventListener('popstate', (e) => {
-            const pop = document.getElementById('dice-settings-popover');
             if (UI.activeModal) { const closingModal = UI.activeModal; UI.activeModal = null; document.getElementById(closingModal).style.display = 'none'; if(!document.querySelector('.panel.open')) { document.getElementById('overlay').classList.remove('active'); } return; }
             if (this.isPanelOpen) { UI.syncPanelsBeforeClose(); this.isPanelOpen = false; document.querySelectorAll('.panel').forEach(p => p.classList.remove('open')); document.getElementById('overlay').classList.remove('active'); return; } 
-            if (pop && pop.classList.contains('open')) { UI.internalClosePopover(); return; } 
-            if (Store.state.activeRoomId) { if(this.isGenerating) { history.pushState({ page: 'room' }, ""); return; } UI.syncPanelsBeforeClose(); Store.state.activeRoomId = null; document.getElementById('game-container').style.display = 'none'; document.getElementById('lobby-container').style.display = 'block'; document.body.style.backgroundImage = Store.state.lobbyBgUrl ? `url('${Store.state.lobbyBgUrl}')` : 'none'; UI.renderScenarioList(); return; } 
+            if (Store.state.activeRoomId) { if(this.isGenerating) { history.pushState({ page: 'room' }, ""); return; } UI.syncPanelsBeforeClose(); Store.state.activeRoomId = null; document.getElementById('game-container').style.display = 'none'; document.getElementById('lobby-container').style.display = 'block'; UI.setBackground(Store.state.lobbyBgUrl); UI.renderScenarioList(); return; } 
             if (confirm("앱을 종료하시겠습니까?")) { history.back(); } else { history.pushState({ page: 'lobby' }, ""); }
         });
         
-        document.addEventListener('click', (e) => {
-            const pop = document.getElementById('dice-settings-popover'); const btn = document.getElementById('btn-action-expand');
-            if (pop && pop.classList.contains('open')) { if (!pop.contains(e.target) && !btn.contains(e.target)) { if(history.state && history.state.popover) { history.back(); } else { UI.internalClosePopover(); } } }
-        });
-
         document.getElementById('world-panel').addEventListener('focusin', (e) => this.onPanelFocus(e, 'magic-btn'));
         document.getElementById('char-panel').addEventListener('focusin', (e) => this.onPanelFocus(e, 'magic-btn-char'));
 
@@ -217,23 +210,12 @@ window.App = {
             
             if(!data || !data.keyword) throw new Error("캐릭터 생성 데이터 파싱 실패");
             
-            let parsedStats = [];
-            if(data.stats && Array.isArray(data.stats)) {
-                parsedStats = data.stats.map(s => ({ 
-                    n: s.n || '알수없음', 
-                    v: typeof s.v === 'number' ? s.v : 50, 
-                    active: true 
-                }));
-            } else {
-                parsedStats = [{n:'영향력', v:50, active:true}];
-            }
-
             w.characters.push({
                 id: 'c_' + Date.now(),
                 keyword: data.keyword,
                 desc: data.desc || '',
                 secret: data.secret || '',
-                stats: parsedStats,
+                stats: [],
                 reputation: [],
                 factionIds: [],
                 triggerLocId: '',
@@ -273,7 +255,6 @@ window.App = {
         history.pushState({ page: 'room' }, ""); 
         this.loadActiveRoom(); 
         Store.forceSave(); 
-        if (window.UI) UI.syncToneUI(); 
     },
     
     exitToLobby: function() { if(this.isGenerating) return; history.back(); },
@@ -286,9 +267,9 @@ window.App = {
         const myChar = w.characters.find(c => c.id === r.myCharId); document.getElementById('header-user-name').innerText = myChar ? myChar.keyword : '무명';
         const actNpcs = r.activeCharIds.map(cid => w.characters.find(c=>c.id===cid)).filter(c=>c&&c.id!=='sys'); document.getElementById('header-npc-names').innerText = actNpcs.length > 0 ? actNpcs.map(c=>c.keyword).join(', ') : 'NPC 없음';
         let locName = "자유 이동 (미분류)"; if(r.currentLocIdx >= 0 && w.locations[r.currentLocIdx]) { const l = w.locations[r.currentLocIdx]; const reg = w.regions.find(rg => rg.id === l.regionId); locName = reg ? `${reg.name} - ${l.name}` : l.name; }
-        document.getElementById('header-loc-name').innerText = `🧭 위치: ` + locName; document.body.style.backgroundImage = w.bgUrl ? `url('${w.bgUrl}')` : 'none'; 
+        document.getElementById('header-loc-name').innerText = `🧭 위치: ` + locName; UI.setBackground(w.bgUrl); 
         document.getElementById('room-memory-input').value = r.memory || ''; document.getElementById('global-status-input').value = r.globalStatus || '';
-        Dice.refreshDiceUI(); UI.updateActionBtn(); 
+        UI.updateActionBtn(); 
         
         const container = document.getElementById('chat-container');
         const st = container.scrollTop; container.innerHTML = ''; 
@@ -299,7 +280,7 @@ window.App = {
     handleAction: async function() {
         if(!Store.state.apiKey) return alert("설정 탭에서 API Key를 먼저 입력해주세요!");
         if(this.isGenerating) return; const el = document.getElementById('msg-input'); let text = el.value.trim(); 
-        const diceStr = Dice.getDiceResultStr(); if(!text && !diceStr) text = "(계속)"; else text = diceStr + text;
+        if(!text) text = "(계속)";
         const r = Store.getActiveRoom(); r.history.push({ role:'user', variants:[text], currentVariant:0 }); r.lastUpdated = Date.now();
         UI.appendMessageDOM(r.history[r.history.length-1], r.history.length-1); el.value = ''; el.style.height = '45px'; UI.updateActionBtn(); Store.forceSave(); UI.scrollToBottom(true);
         this.runAI();
@@ -408,30 +389,6 @@ window.App = {
         } catch(e) {}
     },
 
-    processStatUpdate: async function(idx) {
-        if(!Store.state.apiKey) return alert("API Key 필요!");
-        const r = Store.getActiveRoom(); const w = r.worldInstance; const msg = r.history[idx].variants[r.history[idx].currentVariant];
-        let statChanged = false; let repChanged = false;
-        const tChars = w.characters.filter(c => r.activeCharIds.includes(c.id) || c.id === r.myCharId);
-        const cStatStr = tChars.map(c => c.stats&&c.stats.length ? `${c.keyword}: ` + c.stats.map(s=>`${s.n}(${s.v})`).join(', ') : null).filter(x=>x).join('\n');
-        if (cStatStr) {
-            UI.showToast("📊 1/2: 스탯 분석 중...");
-            try {
-                const text = await API.callLLM([{role:'user',parts:[{text:`스탯 증감 추정 후 JSON 배열로만 반환해. 포맷: [{"charName":"이름", "statName":"체력", "newValue":최종}]\n[현재]\n${cStatStr}\n[텍스트] ${msg}`}]}], null, {temp:0.1, jsonMode:true});
-                API.parseAIJsonRaw(text).forEach(item => { let c = tChars.find(x => x.keyword === item.charName || x.keyword.includes(item.charName)); if(c) { const s = c.stats.find(x => x.n === item.statName); if(s && confirm(`[스탯 변동]\n${c.keyword}의 [${s.n}]을 ${s.v} -> ${item.newValue} 변경?`)) { s.v = item.newValue; statChanged = true; } } });
-            } catch(e) {}
-        }
-        const cRepStr = tChars.map(c => c.reputation&&c.reputation.length ? `${c.keyword}: ` + c.reputation.map(rep => `${rep.id}(${rep.leftName||'L'}↔${rep.rightName||'R'}:현재${rep.value})`).join(', ') : null).filter(x=>x).join('\n');
-        if(cRepStr) {
-            UI.showToast("⚖️ 2/2: 평판 분석 중...");
-            try {
-                const text = await API.callLLM([{role:'user',parts:[{text:`평판 변동 추정 후 JSON 배열로만 반환해. 포맷: [{"charName":"이름", "repId":"ID", "change":-1,0,1}]\n좌:-1, 우:1\n[현재]\n${cRepStr}\n[텍스트] ${msg}`}]}], null, {temp:0.1, jsonMode:true});
-                API.parseAIJsonRaw(text).forEach(item => { let c = tChars.find(x => x.keyword === item.charName || x.keyword.includes(item.charName)); if(c) { const rep = c.reputation.find(x => x.id === item.repId); if(rep && item.change !== 0) { let newVal = Math.max(-5, Math.min(5, rep.value + item.change)); const dirStr = item.change > 0 ? `[${rep.rightName||'우측'}] 방향으로 +${item.change}` : `[${rep.leftName||'좌측'}] 방향으로 ${item.change}`; if(confirm(`[성향 변동]\n${c.keyword} 성향이 ${dirStr} 된 듯.\n${rep.value} -> ${newVal} 적용?`)) { rep.value = newVal; repChanged = true; } } } });
-            } catch(e) {}
-        }
-        if(statChanged || repChanged) { Store.forceSave(); UI.renderCharacters(); Dice.refreshDiceUI(); UI.showToast("스탯/성향 갱신 완료!"); } else UI.showToast("적용할 변동 사항 없음");
-    },
-
     rewindRoom: function(idx) { if(this.isGenerating) return; if(confirm("이후 대화를 지우고 여기서 다시 시작할까요?")) { Store.getActiveRoom().history = Store.getActiveRoom().history.slice(0, idx + 1); Store.forceSave(); this.loadActiveRoom(); } },
     branch: function(idx) { if(this.isGenerating) return; const r = Store.getActiveRoom(); const h = JSON.parse(JSON.stringify(r.history.slice(0,idx))).map(m=>({role:m.role, variants:[m.variants[m.currentVariant]], currentVariant:0, charIds:m.charIds})); const nr = { ...JSON.parse(JSON.stringify(r)), id:'r_'+Date.now(), name:'[분기] '+r.name, history:h, lastUpdated:Date.now() }; Store.state.rooms.unshift(nr); Store.state.activeRoomId = nr.id; Store.forceSave(); UI.renderScenarioList(); this.loadActiveRoom(); UI.showToast("새 분기(채팅방)로 이동했습니다."); this.runAI(); },
 
@@ -509,7 +466,7 @@ window.App = {
         const worldClone = JSON.parse(JSON.stringify(sourceWorld)); 
         this.remapWorldIds(worldClone); 
         let myC = worldClone.characters.find(c => c.id !== 'sys' && !c.isHidden); 
-        if(!myC) { myC = {id:'c_'+Date.now(), keyword:'플레이어', desc:'주인공.', secret:'', stats:[{n:'체력', v:50, active:true}], reputation:[], factionIds:[], triggerLocId:'', isHidden:false}; worldClone.characters.push(myC); } 
+        if(!myC) { myC = {id:'c_'+Date.now(), keyword:'플레이어', desc:'주인공.', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:false}; worldClone.characters.push(myC); } 
         
         Store.state.rooms.unshift({ 
             id: 'r_'+Date.now(), 

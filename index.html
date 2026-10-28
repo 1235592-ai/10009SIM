@@ -6,7 +6,7 @@
     <title>10009 시뮬레이터</title>
     <meta name="theme-color" content="#0a0a0a">
     <meta name="color-scheme" content="dark">
-    <link rel="stylesheet" href="css/style.css?v=3.3">
+    <link rel="stylesheet" href="css/style.css?v=3.4">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -15,6 +15,7 @@
         <div id="loader-msg">마법 연성 대기 중</div>
     </div>
 
+    <div id="app-bg"></div>
     <div id="overlay" onclick="UI.closeOverlay()"></div>
     <div id="toast-noti" class="sys-noti"></div>
 
@@ -77,8 +78,8 @@
                 <summary style="color:#ef4444;">🛡️ 안전 설정 (검열)</summary>
                 <div class="acc-body">
                     <p class="hint">
-                        * 체크 시 해당 항목의 묘사를 <b>검열(금지)</b>합니다.<br>
-                        * 제한 없는 자유로운 출력을 원하시면 <b>모두 체크 해제</b>하세요.
+                        * 체크한 대상에 대해 해당 묘사를 <b>금지</b>합니다. 모든 시나리오에 공통으로 적용됩니다.<br>
+                        * 체크하지 않은 항목은 제한하지 않습니다. (AI 서비스 자체의 제한은 별개)
                     </p>
                     <div id="safety-checks"></div>
                 </div>
@@ -118,61 +119,6 @@
         <div id="chat-container"></div>
         
         <div class="input-dock">
-            <div class="action-bar-wrapper">
-                <div id="dice-settings-popover" class="bookmark-popover">
-                    <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px dashed #333;">
-                        <div style="font-size:0.75rem; color:#38bdf8; font-weight:bold; margin-bottom:4px;">📝 긴 대화 설정</div>
-                        <div style="font-size:0.75rem; color:#aaa;">아래 아이콘(스위치)을 켜면 AI가 평소보다 상세하고 긴 묘사를 출력합니다.</div>
-                    </div>
-
-                    <div style="font-size:0.75rem; color:#fbbf24; font-weight:bold; margin-bottom:6px;">🎲 주사위 굴림 설정</div>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <select id="dice-type" class="select-std" style="margin:0; padding:6px; width:auto;" onchange="Dice.onChangeType()">
-                                <option value="single">단일 (내 스탯)</option>
-                                <option value="opposed">대항 (vs NPC)</option>
-                                <option value="custom">커스텀 (자유 굴림)</option>
-                            </select>
-                            <select id="dice-my-stat" class="select-std" style="margin:0; padding:6px; width:auto;"></select>
-                            <span id="dice-vs-txt" style="color:#666; display:none; margin:0;">vs</span>
-                            <select id="dice-npc-stat" class="select-std" style="margin:0; padding:6px; width:auto; display:none;"></select>
-                        </div>
-                        
-                        <div id="dice-custom-container" style="display:none; flex-direction:column; gap:6px;">
-                            <input type="text" id="dice-custom-obj" class="input-std" placeholder="목적 (예: 문 따기)" style="margin:0; padding:6px; width:100%;">
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <input type="number" id="dice-custom-n" class="input-std" value="1" min="1" max="20" style="margin:0; padding:6px; width:60px; text-align:center;">
-                                <span style="color:#aaa; font-weight:bold; font-size:1.1rem;">d</span>
-                                <input type="number" id="dice-custom-sides" class="input-std" value="20" min="2" max="1000" style="margin:0; padding:6px; width:70px; text-align:center;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <button id="btn-action-expand" class="btn-expand" onclick="UI.toggleActionPopover()">+</button>
-                
-                <div class="icon-toggle tone-control" id="toggle-tone" onclick="UI.cycleTone()" title="서술 톤 변경 (Light/Normal/Heavy)" style="cursor:pointer;">
-                    <span class="icon tone-icon">🎭</span>
-                    <span id="tone-label" style="font-weight:bold;">Normal</span>
-                </div>
-
-                <label class="icon-toggle" id="toggle-long">
-                    <span class="icon long-icon">📝</span>
-                    <div class="switch">
-                        <input type="checkbox" id="long-response" onchange="UI.syncActionState('long')">
-                        <span class="slider"></span>
-                    </div>
-                </label>
-                
-                <label class="icon-toggle" id="toggle-dice">
-                    <span class="icon dice-icon">🎲</span>
-                    <div class="switch">
-                        <input type="checkbox" id="dice-enable" onchange="UI.syncActionState('dice')">
-                        <span class="slider"></span>
-                    </div>
-                </label>
-            </div>
-
             <div id="input-area">
                 <textarea id="msg-input" placeholder="대화를 입력하세요." oninput="UI.autoResize(this)" onkeydown="App.handleInputKey(event)"></textarea>
                 <button id="action-btn" onclick="App.handleAction()">▶ 전송</button>
@@ -208,6 +154,8 @@
                 <hr style="border-color:#333; margin:15px 0;">
                 <input type="text" class="input-std" id="w-n" placeholder="세계관 이름">
                 <textarea class="area-std auto-resize" id="w-d" placeholder="프롬프트/배경" oninput="UI.autoResize(this);"></textarea>
+                <div class="field-label" style="margin-top:6px;">📜 세계관 전용 지침 <span>(이 세계관에서만 매 턴 그대로 전달)</span></div>
+                <textarea class="area-std auto-resize" id="w-rules" placeholder="비밀 정보, 미정 사항 등 이 세계관에서만 지킬 규칙" oninput="UI.autoResize(this);"></textarea>
                 <input type="text" class="input-std" id="w-url" placeholder="배경 이미지 URL">
             </div>
         </details>
@@ -276,12 +224,6 @@
 
         <hr style="border-color:#333; margin:25px 0;">
 
-        <h3 style="color:#f59e0b;">🎣 떡밥 및 과거사 회수</h3>
-        <button class="btn-main" style="background:#ea580c; margin-top:10px;" onclick="App.recoverBait()">🎣 다음 턴에 떡밥 회수 발동</button>
-        <p style="font-size:0.75rem; color:#888; margin-bottom:15px; line-height:1.4;">* 누르면 다음 생성 시 1회에 한하여 전체 과거사/로어(Lore) 데이터가 컨텍스트에 주입되어, 묻혀있던 설정이 현재 대화에 자연스럽게 엮입니다.</p>
-
-        <hr style="border-color:#333; margin:25px 0;">
-        
         <h3 style="color:#dc2626;">📡 정보망 프리셋</h3>
         <select id="network-preset-sel" class="select-std" onchange="UI.toggleCustomNet(this.value)">
             <option value="modern">🌐 현대 / 현대 판타지</option>
@@ -305,6 +247,12 @@
         <div id="network-content"></div>
         <textarea id="network-edit-area" class="area-std auto-resize" style="display:none; min-height:200px;" oninput="UI.autoResize(this); Store.updateRoomState('networkArchive', this.value);"></textarea>
         <button id="network-save-btn" class="btn-main" style="display:none;" onclick="Store.saveNetwork()">저장</button>
+
+        <hr style="border-color:#333; margin:25px 0;">
+
+        <h3 style="color:#f59e0b;">🎣 떡밥 및 과거사 회수</h3>
+        <button class="btn-main" style="background:#ea580c; margin-top:10px;" onclick="App.recoverBait()">🎣 다음 턴에 떡밥 회수 발동</button>
+        <p style="font-size:0.75rem; color:#888; margin-bottom:15px; line-height:1.4;">* 누르면 다음 생성 시 1회에 한하여 전체 과거사/로어(Lore) 데이터가 컨텍스트에 주입되어, 묻혀있던 설정이 현재 대화에 자연스럽게 엮입니다.</p>
     </div>
 
     <div id="new-room-modal" class="modal-base"><div class="modal-header"><h3>🎭 새 시나리오</h3><button class="close-btn-new" onclick="UI.closeModal('new-room-modal')">✕</button></div><select id="new-room-world-sel" class="select-std"></select><input type="text" id="new-room-name" class="input-std" placeholder="제목"><button class="btn-play" onclick="App.createNewRoom()">생성</button></div>
@@ -313,10 +261,9 @@
     <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3>🏷️ 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')">✕</button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 🌌 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
     <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
-    <script src="js/store.js?v=3.3"></script>
-    <script src="js/api.js?v=3.3"></script>
-    <script src="js/dice.js?v=3.3"></script>
-    <script src="js/ui.js?v=3.3"></script>
-    <script src="js/app.js?v=3.3"></script>
+    <script src="js/store.js?v=3.4"></script>
+    <script src="js/api.js?v=3.4"></script>
+    <script src="js/ui.js?v=3.4"></script>
+    <script src="js/app.js?v=3.4"></script>
 </body>
 </html>

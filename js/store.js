@@ -2,7 +2,7 @@ window.Store = {
     VERSION: 100,
     state: {
         provider: 'gemini', apiKey: '', modelName: 'gemini-3.5-flash-lite', baseUrl: '', providerConfigs: {}, globalRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
-        safety: { violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false },
+        safety: {},
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
     saveTimeout: null,
@@ -38,7 +38,7 @@ window.Store = {
             this.state.providerConfigs = master.providerConfigs || {};
             this.state.globalRules = master.globalRules || '';
             this.state.lobbyBgUrl = master.lobbyBgUrl || '';
-            this.state.safety = Object.assign({ violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false }, master.safety || {}); 
+            this.state.safety = this.normalizeSafety(master.safety); 
             this.state.roomTags = master.roomTags || [];
             this.state.worlds = await this.dbGetAll('worlds');
             this.state.rooms = await this.dbGetAll('rooms');
@@ -89,6 +89,22 @@ window.Store = {
         }, 500);
     },
     
+    // 예전 형식(항목별 true/false)을 새 형식({user, npc})으로 옮긴다
+    normalizeSafety: function(raw) {
+        raw = raw || {}; const out = {};
+        const legacy = { cruelty: ['violence', 'gore', 'abuse'], sexual: ['sexual'], obsession: ['obsession'], marysue: ['marysue'] };
+        API.SAFETY_ITEMS.forEach(it => {
+            const v = raw[it.key];
+            if(v && typeof v === 'object') out[it.key] = { user: !!v.user, npc: !!v.npc };
+            else { const on = (legacy[it.key] || []).some(k => raw[k] === true); out[it.key] = { user: on, npc: on }; }
+        });
+        return out;
+    },
+    setSafety: function(key, target, on) {
+        if(!this.state.safety[key]) this.state.safety[key] = { user: false, npc: false };
+        this.state.safety[key][target] = on; this.forceSave(); UI.showToast("안전 설정이 저장되었습니다.");
+    },
+
     masterSettings: function() {
         const s = this.state;
         return { provider: s.provider, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
@@ -106,7 +122,7 @@ window.Store = {
         this.state.lobbyBgUrl = document.getElementById('set-lobby-bg').value.trim();
         this.stashProviderConfig();
         this.forceSave(); 
-        if(!this.state.activeRoomId) { document.body.style.backgroundImage = this.state.lobbyBgUrl ? `url('${this.state.lobbyBgUrl}')` : 'none'; }
+        if(!this.state.activeRoomId) UI.setBackground(this.state.lobbyBgUrl);
         UI.renderApiSettings();
         UI.showToast("설정이 저장되었습니다."); 
     },
@@ -171,6 +187,7 @@ window.Store = {
         w.name = document.getElementById('w-n')?.value ?? w.name; 
         w.prompt = document.getElementById('w-d')?.value ?? w.prompt; 
         w.bgUrl = document.getElementById('w-url')?.value ?? w.bgUrl;
+        w.rules = document.getElementById('w-rules')?.value ?? w.rules;
         
         w.loreFolders.forEach(lf => { lf.name = document.getElementById(`lf-n-${lf.id}`)?.value ?? lf.name; lf.desc = document.getElementById(`lf-d-${lf.id}`)?.value ?? lf.desc; });
         w.lores.forEach(l => { l.keyword = document.getElementById(`l-n-${l.id}`)?.value ?? l.keyword; l.desc = document.getElementById(`l-d-${l.id}`)?.value ?? l.desc; l.folderId = document.getElementById(`l-fld-${l.id}`)?.value ?? l.folderId; l.triggerLocId = document.getElementById(`l-trig-${l.id}`)?.value ?? l.triggerLocId; });
@@ -245,12 +262,6 @@ window.Store = {
     toggleHidden: function(id) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === id); if(c) { this.syncCharDOM(); c.isHidden = !c.isHidden; this.forceSave(); UI.renderCharacters(); } },
     addFacTag: function(cId, selEl) { const fId = selEl.value; if(!fId) return; selEl.value = ''; const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; if(!arr.includes(fId)) { arr.push(fId); hid.value = arr.join(','); this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.focusChar(cId, fId); } },
     removeFacTag: function(cId, fId) { const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; arr = arr.filter(x => x !== fId); hid.value = arr.join(','); this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.focusChar(cId); },
-    addStat: function(cId) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c) { this.syncCharDOM(); if(!c.stats) c.stats = []; c.stats.push({ n:'', v:50, active:true }); this.forceSave(); UI.renderCharacters(); } },
-    delStat: function(cId, sIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("스탯을 삭제하시겠습니까?")) { this.syncCharDOM(); c.stats.splice(sIdx, 1); this.forceSave(); UI.renderCharacters(); } },
-    upStat: function(cId, sIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.stats[sIdx]) { c.stats[sIdx][key] = (key==='v' ? Number(val) : val); this.forceSave(); } },
-    addRep: function(cId) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c) { this.syncCharDOM(); if(!c.reputation) c.reputation = []; c.reputation.push({ id:'rep_'+Date.now(), leftName:'', rightName:'', value:0 }); this.forceSave(); UI.renderCharacters(); } },
-    delRep: function(cId, rIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("이 성향 축을 삭제하시겠습니까?")) { this.syncCharDOM(); c.reputation.splice(rIdx, 1); this.forceSave(); UI.renderCharacters(); } },
-    upRep: function(cId, rIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.reputation[rIdx]) { c.reputation[rIdx][key] = (key==='value' ? Number(val) : val); this.forceSave(); } },
 
     exportData: function() { 
         if(!confirm("모든 설정과 시나리오 데이터를 백업 파일(JSON)로 다운로드하시겠습니까?")) return;
