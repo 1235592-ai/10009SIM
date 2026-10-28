@@ -1,8 +1,8 @@
 window.Store = {
     VERSION: 100,
     state: {
-        provider: 'gemini', apiKey: '', modelName: 'gemini-3.5-flash-lite', baseUrl: '', providerConfigs: {}, globalRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
-        safety: { violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false },
+        provider: 'gemini', historyLimit: 25, apiKey: '', modelName: 'gemini-3.5-flash-lite', baseUrl: '', providerConfigs: {}, globalRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
+        safety: {},
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
     saveTimeout: null,
@@ -37,8 +37,9 @@ window.Store = {
             this.state.baseUrl = master.baseUrl || '';
             this.state.providerConfigs = master.providerConfigs || {};
             this.state.globalRules = master.globalRules || '';
+            this.state.historyLimit = master.historyLimit || 25;
             this.state.lobbyBgUrl = master.lobbyBgUrl || '';
-            this.state.safety = Object.assign({ violence: false, discrimination: false, sexual: false, abuse: false, selfharm: false, drugs: false, marysue: false, obsession: false, gore: false, romance: false }, master.safety || {}); 
+            this.state.safety = this.normalizeSafety(master.safety); 
             this.state.roomTags = master.roomTags || [];
             this.state.worlds = await this.dbGetAll('worlds');
             this.state.rooms = await this.dbGetAll('rooms');
@@ -89,9 +90,25 @@ window.Store = {
         }, 500);
     },
     
+    // 예전 형식(항목별 true/false)을 새 형식({user, npc})으로 옮긴다
+    normalizeSafety: function(raw) {
+        raw = raw || {}; const out = {};
+        const legacy = { cruelty: ['violence', 'gore', 'abuse'], sexual: ['sexual'], obsession: ['obsession'], marysue: ['marysue'] };
+        API.SAFETY_ITEMS.forEach(it => {
+            const v = raw[it.key];
+            if(v && typeof v === 'object') out[it.key] = { user: !!v.user, npc: !!v.npc };
+            else { const on = (legacy[it.key] || []).some(k => raw[k] === true); out[it.key] = { user: on, npc: on }; }
+        });
+        return out;
+    },
+    setSafety: function(key, target, on) {
+        if(!this.state.safety[key]) this.state.safety[key] = { user: false, npc: false };
+        this.state.safety[key][target] = on; this.forceSave(); UI.showToast("안전 설정이 저장되었습니다.");
+    },
+
     masterSettings: function() {
         const s = this.state;
-        return { provider: s.provider, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
+        return { provider: s.provider, historyLimit: s.historyLimit, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
     },
 
     // 현재 입력된 키/모델을 서비스별로 따로 보관해 두어, 서비스를 바꿔도 이전 키가 지워지지 않게 한다.
@@ -104,9 +121,11 @@ window.Store = {
         this.state.modelName = document.getElementById('set-model-name').value.trim() || API.PROVIDERS[API.getProvider()].defaultModel; 
         this.state.baseUrl = document.getElementById('set-base-url').value.trim();
         this.state.lobbyBgUrl = document.getElementById('set-lobby-bg').value.trim();
+        const lim = parseInt(document.getElementById('set-history-limit').value, 10);
+        this.state.historyLimit = isNaN(lim) ? 25 : Math.max(5, Math.min(200, lim));
         this.stashProviderConfig();
         this.forceSave(); 
-        if(!this.state.activeRoomId) { document.body.style.backgroundImage = this.state.lobbyBgUrl ? `url('${this.state.lobbyBgUrl}')` : 'none'; }
+        if(!this.state.activeRoomId) UI.setBackground(this.state.lobbyBgUrl);
         UI.renderApiSettings();
         UI.showToast("설정이 저장되었습니다."); 
     },
@@ -159,7 +178,6 @@ window.Store = {
     updateRoomState: function(key, val) { const r = this.getActiveRoom(); if(r) { r[key] = val; this.forceSave(); } },
     setLoc: function(idx) { const r = this.getActiveRoom(); if(!r) return; r.currentLocIdx = idx; this.forceSave(); App.loadActiveRoom(); UI.closeOverlay(); },
     saveRoomMemory: function() { const r = this.getActiveRoom(); if(!r) return; r.memory = document.getElementById('room-memory-input').value; r.globalStatus = document.getElementById('global-status-input').value; this.forceSave(); UI.showToast("상황/세계 상태가 저장되었습니다."); },
-    saveNetwork: function() { const r = this.getActiveRoom(); if(!r) return; r.networkArchive = document.getElementById('network-edit-area').value; this.forceSave(); UI.editNetwork(false); UI.renderNetworkArchive(); },
 
     removeRoomDB: async function(id) { await this.dbDelete('rooms', id); },
     
@@ -171,6 +189,7 @@ window.Store = {
         w.name = document.getElementById('w-n')?.value ?? w.name; 
         w.prompt = document.getElementById('w-d')?.value ?? w.prompt; 
         w.bgUrl = document.getElementById('w-url')?.value ?? w.bgUrl;
+        w.rules = document.getElementById('w-rules')?.value ?? w.rules;
         
         w.loreFolders.forEach(lf => { lf.name = document.getElementById(`lf-n-${lf.id}`)?.value ?? lf.name; lf.desc = document.getElementById(`lf-d-${lf.id}`)?.value ?? lf.desc; });
         w.lores.forEach(l => { l.keyword = document.getElementById(`l-n-${l.id}`)?.value ?? l.keyword; l.desc = document.getElementById(`l-d-${l.id}`)?.value ?? l.desc; l.folderId = document.getElementById(`l-fld-${l.id}`)?.value ?? l.folderId; l.triggerLocId = document.getElementById(`l-trig-${l.id}`)?.value ?? l.triggerLocId; });
@@ -245,12 +264,6 @@ window.Store = {
     toggleHidden: function(id) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === id); if(c) { this.syncCharDOM(); c.isHidden = !c.isHidden; this.forceSave(); UI.renderCharacters(); } },
     addFacTag: function(cId, selEl) { const fId = selEl.value; if(!fId) return; selEl.value = ''; const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; if(!arr.includes(fId)) { arr.push(fId); hid.value = arr.join(','); this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.focusChar(cId, fId); } },
     removeFacTag: function(cId, fId) { const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; arr = arr.filter(x => x !== fId); hid.value = arr.join(','); this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.focusChar(cId); },
-    addStat: function(cId) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c) { this.syncCharDOM(); if(!c.stats) c.stats = []; c.stats.push({ n:'', v:50, active:true }); this.forceSave(); UI.renderCharacters(); } },
-    delStat: function(cId, sIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("스탯을 삭제하시겠습니까?")) { this.syncCharDOM(); c.stats.splice(sIdx, 1); this.forceSave(); UI.renderCharacters(); } },
-    upStat: function(cId, sIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.stats[sIdx]) { c.stats[sIdx][key] = (key==='v' ? Number(val) : val); this.forceSave(); } },
-    addRep: function(cId) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c) { this.syncCharDOM(); if(!c.reputation) c.reputation = []; c.reputation.push({ id:'rep_'+Date.now(), leftName:'', rightName:'', value:0 }); this.forceSave(); UI.renderCharacters(); } },
-    delRep: function(cId, rIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("이 성향 축을 삭제하시겠습니까?")) { this.syncCharDOM(); c.reputation.splice(rIdx, 1); this.forceSave(); UI.renderCharacters(); } },
-    upRep: function(cId, rIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.reputation[rIdx]) { c.reputation[rIdx][key] = (key==='value' ? Number(val) : val); this.forceSave(); } },
 
     exportData: function() { 
         if(!confirm("모든 설정과 시나리오 데이터를 백업 파일(JSON)로 다운로드하시겠습니까?")) return;
@@ -260,7 +273,7 @@ window.Store = {
     exportChatToTxt: function() { 
         if(!confirm("현재 시나리오의 대화 로그를 텍스트 파일(TXT)로 다운로드하시겠습니까?")) return;
         const r = this.getActiveRoom(); if(!r) return; const w = r.worldInstance; let txt = `${r.name} - 로그\n\n`; 
-        r.history.forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); 
+        r.history.filter(m => !m.hidden).forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); 
         const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${r.name}.txt`; a.click(); 
     },
     importData: function(e) { 
@@ -273,7 +286,7 @@ window.Store = {
                 
                 this.db = await this.openDB();
                 const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
-                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.5-flash-lite', worldTagsMigrated:!!st.worldTagsMigrated, baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
+                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.5-flash-lite', worldTagsMigrated:!!st.worldTagsMigrated, baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', historyLimit:st.historyLimit||25, safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
                 if(st.worlds) { st.worlds.forEach(w => { if(!w.keywords) w.keywords=[]; tx.objectStore('worlds').put(w); }); }
                 if(st.rooms) st.rooms.forEach(rm => tx.objectStore('rooms').put(rm));
                 tx.oncomplete = () => { alert("복원 완료! 앱을 재시작합니다."); window.location.reload(); };

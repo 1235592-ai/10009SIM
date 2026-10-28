@@ -39,6 +39,8 @@ window.UI = {
         });
     },
 
+    setBackground: function(url) { const bg = document.getElementById('app-bg'); if(bg) bg.style.backgroundImage = url ? `url('${url}')` : 'none'; },
+
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
     
     autoResize: function(el) { 
@@ -113,52 +115,6 @@ window.UI = {
         else if (App.isPanelOpen) { this.forceClosePanel(); }
     },
 
-    toggleActionPopover: function() {
-        const pop = document.getElementById('dice-settings-popover');
-        if(pop.classList.contains('open')) { history.back(); } 
-        else { history.pushState({ popover: true }, ""); this.internalOpenPopover(); }
-    },
-    internalOpenPopover: function() {
-        const pop = document.getElementById('dice-settings-popover');
-        const btn = document.getElementById('btn-action-expand');
-        pop.classList.add('open'); btn.classList.add('open'); btn.innerText = '✕';
-        if(window.Dice) window.Dice.refreshDiceUI();
-    },
-    internalClosePopover: function() {
-        const pop = document.getElementById('dice-settings-popover');
-        const btn = document.getElementById('btn-action-expand');
-        pop.classList.remove('open'); btn.classList.remove('open'); btn.innerText = '+';
-    },
-
-    syncActionState: function(type) {
-        const chkId = type === 'long' ? 'long-response' : 'dice-enable';
-        const wrapId = type === 'long' ? 'toggle-long' : 'toggle-dice';
-        const chk = document.getElementById(chkId);
-        const wrap = document.getElementById(wrapId);
-        if(chk.checked) wrap.classList.add('active'); else wrap.classList.remove('active');
-    },
-
-    cycleTone: function() {
-        const tones = ['light', 'normal', 'heavy'];
-        const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
-        if(!r) return;
-        let current = r.tone || 'normal';
-        let nextIdx = (tones.indexOf(current) + 1) % tones.length;
-        Store.updateRoomState('tone', tones[nextIdx]);
-        this.syncToneUI();
-    },
-    syncToneUI: function() {
-        const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
-        let current = r ? (r.tone || 'normal') : 'normal';
-        const labelEl = document.getElementById('tone-label');
-        if(labelEl) {
-            labelEl.innerText = current.charAt(0).toUpperCase() + current.slice(1);
-            if(current === 'light') labelEl.style.color = '#34d399';
-            else if(current === 'heavy') labelEl.style.color = '#f87171';
-            else labelEl.style.color = '#a1a1aa';
-        }
-    },
-
     syncPanelsBeforeClose: function() { 
         const worldOpen = document.getElementById('world-panel').classList.contains('open');
         const charOpen = document.getElementById('char-panel').classList.contains('open');
@@ -186,19 +142,18 @@ window.UI = {
             modSel.innerHTML = `<option value="">▼ 추천 모델 선택</option>` + info.models.map(([id, desc]) => `<option value="${id}">${id} (${desc})</option>`).join('');
             modSel.value = info.models.some(([id]) => id === Store.state.modelName) ? Store.state.modelName : '';
         }
+        const limEl = document.getElementById('set-history-limit'); if(limEl) limEl.value = Store.state.historyLimit || 25;
         const hintEl = document.getElementById('provider-hint'); if(hintEl) hintEl.innerText = `* ${info.hint}\n* API 키는 이 기기 브라우저에만 저장되며, 전체 백업 파일에는 포함됩니다.`;
     },
     
     togglePanel: function(id) {
         if(App.isGenerating) return; this.syncPanelsBeforeClose();
         const p = document.getElementById(id);
-        const pop = document.getElementById('dice-settings-popover');
         
         if(p.classList.contains('open')) { 
             if(App.isPanelOpen) history.back(); 
         } else {
-            if (pop && pop.classList.contains('open')) { this.internalClosePopover(); history.replaceState({ panel: true }, ""); } 
-            else { if(!App.isPanelOpen) { history.pushState({ panel: true }, ""); } }
+            if(!App.isPanelOpen) history.pushState({ panel: true }, "");
             App.isPanelOpen = true;
             
             document.querySelectorAll('.panel').forEach(el => el.classList.remove('open')); 
@@ -231,9 +186,7 @@ window.UI = {
                 const r = Store.getActiveRoom();
                 const memInput = document.getElementById('room-memory-input'); memInput.value = r.memory || ''; 
                 const statInput = document.getElementById('global-status-input'); statInput.value = r.globalStatus || ''; 
-                const sel = document.getElementById('network-preset-sel');
-                if(sel) { sel.value = r.networkPreset || 'modern'; this.toggleCustomNet(sel.value); }
-                this.renderNetworkArchive(); 
+                Net.render(); 
                 setTimeout(() => {this.autoResize(memInput); this.autoResize(statInput);}, 10); 
             } 
         }
@@ -241,12 +194,10 @@ window.UI = {
 
     renderSafetyUI: function() {
         const container = document.getElementById('safety-checks'); if(!container) return;
-        const labels = { violence: "폭력 및 유혈", discrimination: "혐오 및 차별", sexual: "성적 표현", abuse: "학대 묘사", selfharm: "자해 및 자살", drugs: "음주 및 약물", marysue: "과잉 찬양", obsession: "소유욕 및 집착", gore: "공포 및 기괴함", romance: "로맨스 전개" };
-        container.innerHTML = Object.keys(Store.state.safety).map(key => {
-            if (!labels[key]) return ''; 
-            return `<label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; font-size:0.85rem;">
-                <input type="checkbox" ${Store.state.safety[key] ? 'checked' : ''} onchange="Store.state.safety.${key}=this.checked; Store.saveSettings();"> ${labels[key]}
-            </label>`;
+        container.innerHTML = API.SAFETY_ITEMS.map(it => {
+            const v = Store.state.safety[it.key] || {};
+            const box = (target, label) => `<label><input type="checkbox" ${v[target] ? 'checked' : ''} onchange="Store.setSafety('${it.key}', '${target}', this.checked)"> ${label}</label>`;
+            return `<div class="safety-row"><div class="safety-label">${it.label}</div><div class="safety-opts">${box('user', '사용자 캐릭터 대상')}${box('npc', 'NPC 대상')}</div></div>`;
         }).join('');
     },
 
@@ -323,6 +274,7 @@ window.UI = {
         const wnEl = document.getElementById('w-n'); if(wnEl) wnEl.value = w.name || ''; 
         const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; 
         const wurlEl = document.getElementById('w-url'); if(wurlEl) wurlEl.value = w.bgUrl || '';
+        const wrEl = document.getElementById('w-rules'); if(wrEl) { wrEl.value = w.rules || ''; setTimeout(() => this.autoResize(wrEl), 10); }
         
         const folderMap = { '': [] }; w.loreFolders.forEach(lf => folderMap[lf.id] = []); w.lores.forEach(l => { if(folderMap[l.folderId]) folderMap[l.folderId].push(l); else folderMap[''].push(l); });
         const locOptions = `<option value="">(장소 조건 없음)</option>` + w.locations.map(loc => `<option value="${loc.id}">${this.esc(loc.name)}에서만 활성화</option>`).join('');
@@ -462,30 +414,6 @@ window.UI = {
 
     buildCharBody: function(c, isMy, isNpc, w) {
         if(!c.stats) c.stats = []; if(!c.reputation) c.reputation = []; if(!c.factionIds) c.factionIds = [];
-        const statHtml = c.stats.map((s, sIdx) => `
-            <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center;">
-                <label style="font-size:0.8rem; color:#a1a1aa; cursor:pointer;">
-                    <input type="checkbox" title="적용" ${s.active!==false?'checked':''} onchange="Store.upStat('${c.id}', ${sIdx}, 'active', this.checked)">
-                </label>
-                <input type="text" class="input-std" style="margin:0; flex:2; padding:8px;" placeholder="스탯명" value="${this.esc(s.n)}" onchange="Store.upStat('${c.id}', ${sIdx}, 'n', this.value)">
-                <input type="number" class="input-std" style="margin:0; flex:1; padding:8px;" placeholder="수치" value="${s.v}" onchange="Store.upStat('${c.id}', ${sIdx}, 'v', this.value)">
-                <button class="btn-danger" style="margin:0; padding:6px 10px; width:auto;" onclick="Store.delStat('${c.id}', ${sIdx})">✖</button>
-            </div>`).join('');
-            
-        const repHtml = c.reputation.map((rObj, rIdx) => `
-            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px; padding:10px; background:rgba(0,0,0,0.25); border-radius:8px; border:1px solid #27272a;">
-                <div style="display:flex; gap:6px; align-items:center;">
-                    <input type="text" class="input-std" style="margin:0; flex:1; padding:6px; font-size:0.8rem;" placeholder="좌측(예:악)" value="${this.esc(rObj.leftName)}" onchange="Store.upRep('${c.id}', ${rIdx}, 'leftName', this.value)">
-                    <span style="color:#71717a;">↔</span>
-                    <input type="text" class="input-std" style="margin:0; flex:1; padding:6px; font-size:0.8rem;" placeholder="우측(예:선)" value="${this.esc(rObj.rightName)}" onchange="Store.upRep('${c.id}', ${rIdx}, 'rightName', this.value)">
-                    <button class="btn-danger" style="margin:0; padding:6px 10px; width:auto;" onclick="Store.delRep('${c.id}', ${rIdx})">✖</button>
-                </div>
-                <div style="display:flex; gap:12px; align-items:center; margin-top:4px;">
-                    <span style="font-size:0.8rem; color:#a1a1aa; min-width:24px; text-align:right;" id="rep-val-${c.id}-${rIdx}">${rObj.value}</span>
-                    <input type="range" min="-5" max="5" step="1" value="${rObj.value}" style="flex:1; cursor:pointer;" oninput="document.getElementById('rep-val-${c.id}-${rIdx}').innerText=this.value" onchange="Store.upRep('${c.id}', ${rIdx}, 'value', this.value)">
-                </div>
-            </div>`).join('');
-        
         const locOpts = `<option value="">(조건 없음)</option>` + w.locations.map(loc => `<option value="${loc.id}" ${c.triggerLocId===loc.id?'selected':''}>${this.esc(loc.name)} 등장</option>`).join('');
         const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
 
@@ -516,20 +444,6 @@ window.UI = {
                 <textarea class="area-std auto-resize" id="c-d-${c.id}" placeholder="설명" oninput="UI.autoResize(this);">${this.esc(c.desc)}</textarea>
                 <span class="secret-label">🔒 인물 비밀</span>
                 <textarea class="area-std auto-resize" id="c-s-${c.id}" oninput="UI.autoResize(this);">${this.esc(c.secret)}</textarea>
-                
-                <div style="margin-top:12px; border-top:1px dashed #3f3f46; padding-top:12px;">
-                    <span style="font-size:0.85rem; font-weight:bold; color:#fbbf24;">📊 스탯</span>
-                    <div style="margin-top:8px;">${statHtml}</div>
-                    <button class="btn-ghost" style="padding:6px; font-size:0.8rem; margin:0;" onclick="Store.addStat('${c.id}')">+ 스탯 추가</button>
-                </div>
-                
-                <details class="acc-sec" id="det-c-rep-${c.id}" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.02);">
-                    <summary style="font-size:0.85rem; color:#a78bfa; padding-bottom:0; border:none; background:transparent;">⚖️ 평판 및 성향</summary>
-                    <div style="margin-top:10px;">
-                        ${repHtml}
-                        <button class="btn-ghost" style="padding:6px; font-size:0.8rem; margin:0;" onclick="Store.addRep('${c.id}')">+ 성향 축 추가</button>
-                    </div>
-                </details>
                 
                 ${c.id!=='sys' ? `<button class="btn-danger" style="margin-top:16px;" onclick="Store.delChar('${c.id}')">인물 완전 삭제</button>` : ''}
             </div>`;
@@ -640,6 +554,7 @@ window.UI = {
     },
     
     appendMessageDOM: function(m, idx) {
+        if(m.hidden) return null;   // 공유 메모 등 AI만 아는 기록은 화면에 그리지 않는다
         const r = Store.getActiveRoom(); const w = r.worldInstance; const container = document.getElementById('chat-container'); 
         const d = document.createElement('div'); d.className = `message ${m.role}`; d.setAttribute('data-idx', idx);
         
@@ -660,36 +575,17 @@ window.UI = {
     },
     
     formatMsg: function(t, role) { 
-        if(role === 'ai') {
-            return t.split('\n').map(line => { 
-                // 1순위: **이름**: "대사"
-                let m = line.match(/^\s*\*\*(.+?)\*\*\s*:\s*"(.+)"\s*$/);
-                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2])}"</div></div>`; 
-                
-                // 1.5순위: **이름**: 대사
-                m = line.match(/^\s*\*\*(.+?)\*\*\s*:\s*(.+)$/);
-                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2].replace(/^"|"$/g, ''))}"</div></div>`; 
-
-                // 2순위: 이름: "대사"
-                m = line.match(/^\s*([가-힣a-zA-Z][^:]{0,19})\s*:\s*"(.+)"\s*$/);
-                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2])}"</div></div>`; 
-
-                // 3순위: 기존 Fallback 로직
-                m = line.match(/^\s*([^\(\[\~:<*]{1,20})\s*:\s*"([^"]+)"\s*$/);
-                if (m) return `<div class="speech-bubble"><div class="speech-name">${this.esc(m[1].trim())}</div><div class="speech-content">"${this.esc(m[2])}"</div></div>`;
-
-                let res = this.esc(line);
-                res = res.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); 
-                res = res.replace(/\*(.*?)\*/g, "<em>$1</em>");
-                return res; 
-            }).join('<br>');
+        const md = (x) => x.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
+        if(role === 'user') {
+            // 서술(행동) / "대사" / (진행 밖 요청)으로 나눠 각각 다른 모양으로 보여준다
+            return t.split(/(\([^)]*\)|"[^"]*"|“[^”]*”)/g).filter(seg => seg).map(seg => {
+                const html = md(this.esc(seg)).replace(/\n/g, '<br>');
+                if(seg.startsWith('(')) return `<span class="u-ooc">${html}</span>`;
+                if(seg.startsWith('"') || seg.startsWith('“')) return `<span class="u-say">${html}</span>`;
+                return `<span class="u-act">${html}</span>`;
+            }).join('');
         }
-        
-        let res = this.esc(t);
-        res = res.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); 
-        res = res.replace(/\*(.*?)\*/g, "<em>$1</em>");
-        if(role === 'user') res = res.replace(/\((.*?)\)/g, "<span class='action'>($1)</span>"); 
-        return res.replace(/\n/g, "<br>"); 
+        return md(this.esc(t)).replace(/\n/g, "<br>"); 
     },
     
     createCtrls: function(idx) {
@@ -714,13 +610,12 @@ window.UI = {
             const moreBtn = document.createElement('button'); moreBtn.innerText="⋯"; moreBtn.title="더보기";
             const moreMenu = document.createElement('span'); moreMenu.style.display="none"; moreMenu.style.gap="4px";
             
-            const stb = document.createElement('button'); stb.innerText="📊"; stb.title="스탯/성향 분석 갱신"; stb.onclick=()=>App.processStatUpdate(idx); 
             const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="메시지 직접 수정"; eb.onclick=()=>this.enterEdit(idx); 
             const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="⏪"; rw.title="이후 대화 지우고 되감기"; rw.onclick=()=>App.rewindRoom(idx); 
             const db = document.createElement('button'); db.innerText="🗑️"; db.title="메시지 삭제"; db.onclick=()=>{ if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); Store.forceSave(); App.loadActiveRoom(true); }; 
             
             moreBtn.onclick = () => { moreMenu.style.display = moreMenu.style.display==='none' ? 'inline-flex' : 'none'; };
-            moreMenu.append(stb, eb, rw, db);
+            moreMenu.append(eb, rw, db);
             c.append(moreBtn, moreMenu);
         } else {
             const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="수정"; eb.onclick=()=>this.enterEdit(idx); 
@@ -749,39 +644,5 @@ window.UI = {
         setTimeout(() => { this.autoResize(editArea); editArea.focus(); editArea.setSelectionRange(0, 0); editArea.scrollTop = 0; msgDiv.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 10);
     },
 
-    toggleCustomNet: function(val) {
-        const el = document.getElementById('custom-net-input');
-        if(el) el.style.display = (val === 'custom') ? 'block' : 'none';
-        Store.updateRoomState('networkPreset', val);
-        Store.forceSave();
-    },
 
-    renderNetworkArchive: function() { 
-        const r = Store.getActiveRoom(); 
-        let raw = r.networkArchive || "정보가 없습니다. 스캔을 실행하세요.";
-        if(raw.includes('스캔 중')) return document.getElementById('network-content').innerHTML = raw;
-        
-        let fmt = raw.replace(/^\s*(?:\d+\.\s*)?([^\n\[]*?\[.*?\])/gm, (match, p1) => {
-            return `</div></div><div class="net-entry"><span class="net-tag tag-universal">${p1.trim()}</span><div style="margin-top:8px;">`;
-        });
-
-        fmt = fmt.replace(/\n[ㄴ└]\s?(.*)/g, '<div class="net-comment">ㄴ $1</div>');
-        fmt = fmt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
-        
-        if(fmt.startsWith('</div></div>')) fmt = fmt.substring(12);
-        document.getElementById('network-content').innerHTML = fmt + (fmt.includes('net-entry') ? '</div></div>' : ''); 
-    },
-    
-    editNetwork: function(isEdit = true) {
-        const r = Store.getActiveRoom(); const cDiv = document.getElementById('network-content'); const eArea = document.getElementById('network-edit-area'); const sBtn = document.getElementById('network-save-btn');
-        if (isEdit && eArea.style.display === 'none') {
-            let txt = r.networkArchive || '';
-            if(txt.includes('<div')) {
-                txt = txt.replace(/<br\s*\/?>/gi, '\n');
-                txt = txt.replace(/<[^>]*>?/gm, '');
-            }
-            eArea.value = txt.trim(); 
-            cDiv.style.display = 'none'; eArea.style.display = 'block'; sBtn.style.display = 'block'; setTimeout(() => this.autoResize(eArea), 10);
-        } else { cDiv.style.display = 'block'; eArea.style.display = 'none'; sBtn.style.display = 'none'; }
-    }
 };
