@@ -6,7 +6,7 @@
     <title>10009 시뮬레이터</title>
     <meta name="theme-color" content="#0a0a0a">
     <meta name="color-scheme" content="dark">
-    <link rel="stylesheet" href="css/style.css?v=3.4">
+    <link rel="stylesheet" href="css/style.css?v=3.5">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -51,6 +51,9 @@
             <select id="model-preset-sel" class="select-std" onchange="if(this.value) document.getElementById('set-model-name').value = this.value; Store.saveSettings();"></select>
             <input type="text" id="set-model-name" class="input-std" placeholder="모델명 직접 입력" onchange="Store.saveSettings()">
             <p id="provider-hint" class="hint"></p>
+            <div class="field-label">🧠 기억할 최근 메시지 수</div>
+            <input type="number" id="set-history-limit" class="input-std" min="5" max="200" step="1" onchange="Store.saveSettings()">
+            <p class="hint">* 매 턴 AI에게 보내는 최근 대화 개수입니다(내 메시지와 AI 응답 각각 1개). 그보다 오래된 내용은 자동 요약으로 전달됩니다. 늘리면 더 많이 기억하지만 응답이 느려지고 비용이 늘어납니다.</p>
 
             <hr style="border-color:#333; margin:20px 0;">
 
@@ -224,29 +227,13 @@
 
         <hr style="border-color:#333; margin:25px 0;">
 
-        <h3 style="color:#dc2626;">📡 정보망 프리셋</h3>
-        <select id="network-preset-sel" class="select-std" onchange="UI.toggleCustomNet(this.value)">
-            <option value="modern">🌐 현대 / 현대 판타지</option>
-            <option value="medieval">👑 중세 / 로맨스 판타지</option>
-            <option value="apocalypse">📻 아포칼립스 / 생존</option>
-            <option value="wuxia">⚔️ 시대극 / 무협</option>
-            <option value="adventure">🗺️ 던전 / 모험 판타지</option>
-            <option value="custom">⚙️ 자유 지정 (직접 입력)</option>
-        </select>
-
-        <div id="custom-net-input" style="display:none; margin-top:10px; padding:10px; background:#1a1a1a; border-radius:8px;">
-            <input type="text" id="custom-net-name" class="input-std" style="margin-bottom:8px;" placeholder="세계관/장르명 (예: 사이버펑크)">
-            <input type="text" id="custom-net-tags" class="input-std" placeholder="태그 4개 (예: [공지],[현장],[수다],[기밀])">
-            <div style="font-size:0.8rem; color:#888; margin-top:5px;">* 쉼표(,)로 구분하여 반드시 4개의 태그를 입력하세요.</div>
+        <h3 style="color:#dc2626;">📡 정보망</h3>
+        <div class="net-tabs">
+            <button class="net-tab" data-tab="inbox" onclick="Net.setTab('inbox')">📨 수신함</button>
+            <button class="net-tab" data-tab="community" onclick="Net.setTab('community')">💬 커뮤니티</button>
+            <button class="net-tab" data-tab="darkweb" onclick="Net.setTab('darkweb')">🧱 다크웹</button>
         </div>
-
-        <div style="display:flex; gap:10px; margin-top:15px; margin-bottom:10px;">
-            <button class="btn-main" style="background:#dc2626; flex:2;" onclick="API.generateNetwork()">🔄 세계 반응 스캔</button>
-            <button class="btn-ghost" style="flex:1;" onclick="UI.editNetwork()">✏️ 수정</button>
-        </div>
-        <div id="network-content"></div>
-        <textarea id="network-edit-area" class="area-std auto-resize" style="display:none; min-height:200px;" oninput="UI.autoResize(this); Store.updateRoomState('networkArchive', this.value);"></textarea>
-        <button id="network-save-btn" class="btn-main" style="display:none;" onclick="Store.saveNetwork()">저장</button>
+        <div id="net-view"></div>
 
         <hr style="border-color:#333; margin:25px 0;">
 
@@ -261,9 +248,10 @@
     <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3>🏷️ 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')">✕</button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 🌌 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
     <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
-    <script src="js/store.js?v=3.4"></script>
-    <script src="js/api.js?v=3.4"></script>
-    <script src="js/ui.js?v=3.4"></script>
-    <script src="js/app.js?v=3.4"></script>
+    <script src="js/store.js?v=3.5"></script>
+    <script src="js/api.js?v=3.5"></script>
+    <script src="js/net.js?v=3.5"></script>
+    <script src="js/ui.js?v=3.5"></script>
+    <script src="js/app.js?v=3.5"></script>
 </body>
 </html>

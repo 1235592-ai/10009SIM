@@ -375,11 +375,9 @@ window.API = {
         
         if(loc) p += `[현재 장소: ${reg?reg.name+' - ':''}${loc.name}]${loc.desc?.trim() ? ' (특징: '+loc.desc.trim()+')' : ''}\n`;
         
-        let mem = r.memory || ""; 
-        const memBlocks = mem.split('[자동 요약]'); 
-        let memToSend = memBlocks[0]; 
-        if (memBlocks.length > 1) { memToSend += '[자동 요약]' + memBlocks.slice(Math.max(1, memBlocks.length - 2)).join('[자동 요약]'); } 
-        if(memToSend.trim()) p += `\n<Timeline>\n${memToSend.trim()}\n</Timeline>\n`;
+        const mem = (r.memory || "").trim();
+        if(mem) p += `\n<Timeline>\n${mem}\n</Timeline>\n`;
+        p += Net.chatContext(r);
         
         let baitRule = "";
         let info = []; 
@@ -411,20 +409,5 @@ ${ruleLines.length > 0 ? "- " + ruleLines.join('\n- ') : "- 검열 없음."}`;
         return p;
     },
 
-    generateNetwork: async function() {
-        if(!Store.state.apiKey) return alert("API Key 필요!");
-        if(App.isGenerating) return; 
-        const r = Store.getActiveRoom(); const w = r.worldInstance; if(!r.history.length) return;
-        const net = document.getElementById('network-content'); const presetType = document.getElementById('network-preset-sel').value || 'modern';
-        net.innerHTML = '<div style="display:flex; align-items:center; gap:8px; color:#fbbf24; font-weight:bold;">세계 반응 스캔 중 <div class="typing-indicator"><span></span><span></span><span></span></div></div>';
-        const ctx = r.history.slice(-4).map(m => m.variants[m.currentVariant]).join("\n");
-        const presets = { modern: { name: "현대/현판", tags: ["📰 [공식 보도]", "🔴 [현장 라이브]", "💻 [커뮤니티]", "🔒 [프라이빗 채널]"] }, medieval: { name: "중세/로판", tags: ["📜 [황실 공고]", "👗 [연회장 실황]", "🍰 [사교계 가십]", "✉️ [비밀 서신]"] }, apocalypse: { name: "아포칼립스", tags: ["📻 [수신 신호]", "👣 [현장 흔적]", "🚨 [생존자 기록]", "🧠 [내면의 환청]"] }, wuxia: { name: "시대극/무협", tags: ["📜 [공식 방문]", "🗨 [목격자 진술]", "🍵 [객잔의 소문]", "🕊️ [비선 통신]"] }, adventure: { name: "던전/모험", tags: ["📜 [길드 의뢰]", "🔦 [탐색 기록]", "🍺 [주점 수다]", "🏛 [미궁의 비밀]"] } };
-        let active = presetType === 'custom' ? { name: document.getElementById('custom-net-name').value.trim() || "자유 지정 세계관", tags: (document.getElementById('custom-net-tags').value.trim() || "[공식],[현장],[수다],[기밀]").split(",").map(t => t.trim()) } : presets[presetType];
 
-        try {
-            const p = `당신은 이야기 밖의 '시스템 관측기'입니다. 당신의 역할은 메인 서사와 분리된 세계의 반응을 지정된 포맷으로만 출력하는 것입니다. 절대로 사담, 인사말, 부연 설명을 하지 마십시오.\n\n[출력 포맷 및 규칙]\n아래 4가지 태그를 순서대로 사용하여 각각 하나의 문단으로 작성하십시오.\n1. ${active.tags[0]}: 가장 공식적이고 건조한 사실(팩트) 전달.\n2. ${active.tags[1]}: 지금 막 터진 현장의 역동적인 상황. 본문 서술 후, 줄을 바꾼 뒤 구경꾼/관련자의 짧은 현장 반응(댓글)을 'ㄴ ' 형식으로 2개 작성.\n3. ${active.tags[2]}: 사람들 사이의 수다, 의혹, 과거 발굴. 본문 서술 후, 줄을 바꾼 뒤 대중의 반응(댓글)을 'ㄴ ' 형식으로 2개 작성.\n4. ${active.tags[3]}: 아무도 모르는 이면의 이야기, 기밀, 비밀 연락, 은밀한 지시 또는 속마음.\n\n- 세계관/분위기: '${active.name}' 장르에 완벽히 동기화할 것.\n- 태그의 글자는 단 1글자도 변경하지 말고 그대로 출력할 것.\n\n[최근 상황]\n${ctx}`;
-            const text = await this.callLLM([{role:'user',parts:[{text:p}]}], w.prompt);
-            r.networkArchive = text.trim(); Store.forceSave(); UI.editNetwork(false); UI.renderNetworkArchive();
-        } catch(e) { net.innerText = "스캔 실패: " + e.message; }
-    }
 };

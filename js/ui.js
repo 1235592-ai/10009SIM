@@ -142,6 +142,7 @@ window.UI = {
             modSel.innerHTML = `<option value="">▼ 추천 모델 선택</option>` + info.models.map(([id, desc]) => `<option value="${id}">${id} (${desc})</option>`).join('');
             modSel.value = info.models.some(([id]) => id === Store.state.modelName) ? Store.state.modelName : '';
         }
+        const limEl = document.getElementById('set-history-limit'); if(limEl) limEl.value = Store.state.historyLimit || 25;
         const hintEl = document.getElementById('provider-hint'); if(hintEl) hintEl.innerText = `* ${info.hint}\n* API 키는 이 기기 브라우저에만 저장되며, 전체 백업 파일에는 포함됩니다.`;
     },
     
@@ -185,9 +186,7 @@ window.UI = {
                 const r = Store.getActiveRoom();
                 const memInput = document.getElementById('room-memory-input'); memInput.value = r.memory || ''; 
                 const statInput = document.getElementById('global-status-input'); statInput.value = r.globalStatus || ''; 
-                const sel = document.getElementById('network-preset-sel');
-                if(sel) { sel.value = r.networkPreset || 'modern'; this.toggleCustomNet(sel.value); }
-                this.renderNetworkArchive(); 
+                Net.render(); 
                 setTimeout(() => {this.autoResize(memInput); this.autoResize(statInput);}, 10); 
             } 
         }
@@ -555,6 +554,7 @@ window.UI = {
     },
     
     appendMessageDOM: function(m, idx) {
+        if(m.hidden) return null;   // 공유 메모 등 AI만 아는 기록은 화면에 그리지 않는다
         const r = Store.getActiveRoom(); const w = r.worldInstance; const container = document.getElementById('chat-container'); 
         const d = document.createElement('div'); d.className = `message ${m.role}`; d.setAttribute('data-idx', idx);
         
@@ -644,39 +644,5 @@ window.UI = {
         setTimeout(() => { this.autoResize(editArea); editArea.focus(); editArea.setSelectionRange(0, 0); editArea.scrollTop = 0; msgDiv.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 10);
     },
 
-    toggleCustomNet: function(val) {
-        const el = document.getElementById('custom-net-input');
-        if(el) el.style.display = (val === 'custom') ? 'block' : 'none';
-        Store.updateRoomState('networkPreset', val);
-        Store.forceSave();
-    },
 
-    renderNetworkArchive: function() { 
-        const r = Store.getActiveRoom(); 
-        let raw = r.networkArchive || "정보가 없습니다. 스캔을 실행하세요.";
-        if(raw.includes('스캔 중')) return document.getElementById('network-content').innerHTML = raw;
-        
-        let fmt = raw.replace(/^\s*(?:\d+\.\s*)?([^\n\[]*?\[.*?\])/gm, (match, p1) => {
-            return `</div></div><div class="net-entry"><span class="net-tag tag-universal">${p1.trim()}</span><div style="margin-top:8px;">`;
-        });
-
-        fmt = fmt.replace(/\n[ㄴ└]\s?(.*)/g, '<div class="net-comment">ㄴ $1</div>');
-        fmt = fmt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
-        
-        if(fmt.startsWith('</div></div>')) fmt = fmt.substring(12);
-        document.getElementById('network-content').innerHTML = fmt + (fmt.includes('net-entry') ? '</div></div>' : ''); 
-    },
-    
-    editNetwork: function(isEdit = true) {
-        const r = Store.getActiveRoom(); const cDiv = document.getElementById('network-content'); const eArea = document.getElementById('network-edit-area'); const sBtn = document.getElementById('network-save-btn');
-        if (isEdit && eArea.style.display === 'none') {
-            let txt = r.networkArchive || '';
-            if(txt.includes('<div')) {
-                txt = txt.replace(/<br\s*\/?>/gi, '\n');
-                txt = txt.replace(/<[^>]*>?/gm, '');
-            }
-            eArea.value = txt.trim(); 
-            cDiv.style.display = 'none'; eArea.style.display = 'block'; sBtn.style.display = 'block'; setTimeout(() => this.autoResize(eArea), 10);
-        } else { cDiv.style.display = 'block'; eArea.style.display = 'none'; sBtn.style.display = 'none'; }
-    }
 };

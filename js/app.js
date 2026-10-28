@@ -306,7 +306,14 @@ window.App = {
 
         const scan = r.history.slice(-5).map(m => m.variants[m.currentVariant]).join(" ");
         
-        let contents = r.history.slice(Math.max(0, tIdx - 25), tIdx).filter(m => m.variants[m.currentVariant].trim() !== "").map(m => ({ role: m.role==='ai'?'model':'user', parts:[{text: m.variants[m.currentVariant]}] }));
+        const limit = Store.state.historyLimit || 25;
+        let contents = [];
+        // 같은 역할이 연달아 오면(공유 메모 + 내 메시지 등) 하나로 합친다
+        r.history.slice(Math.max(0, tIdx - limit), tIdx).filter(m => m.variants[m.currentVariant].trim() !== "").forEach(m => {
+            const role = m.role === 'ai' ? 'model' : 'user'; const text = m.variants[m.currentVariant];
+            const last = contents[contents.length - 1];
+            if(last && last.role === role) last.parts[0].text += '\n\n' + text; else contents.push({ role, parts: [{ text }] });
+        });
         if(contents.length === 0) contents = [{role:'user', parts:[{text:'(시작해.)'}]}];
         const sysPrompt = API.buildPrompt(r, scan);
 
@@ -360,20 +367,20 @@ window.App = {
     },
 
     triggerAutoSummary: async function() {
-        const r = Store.getActiveRoom(); const histText = r.history.slice(-20).map(m=>m.variants[m.currentVariant]).join("\n");
+        const r = Store.getActiveRoom(); const histText = r.history.slice(-20).filter(m => !m.hidden).map(m=>m.variants[m.currentVariant]).join("\n");
+        // 상황 요약칸에서 직접 쓴 부분(첫 [자동 요약] 앞)은 그대로 두고, 자동 요약은 이전 요약을 반영한 최신본 하나만 남긴다
+        let mem = r.memory || "";
+        const cut = mem.indexOf('[자동 요약]');
+        const manual = (cut >= 0 ? mem.substring(0, cut) : mem).trim();
+        const prevSummary = cut >= 0 ? mem.substring(cut).split('[자동 요약]').filter(x => x.trim()).pop().trim() : '';
         try { 
-            const sysPrompt = `다음 대화에서 아래 항목을 추출해 구조화된 기록으로 저장해라.
-1. 인물별 변화 (감정, 관계, 입장)
-2. 새로 드러난 사실/정보
-3. 미해결 떡밥/약속/예고된 사건
-간결한 개조식으로 작성할 것.`;
+            const sysPrompt = `이전 요약과 최근 대화를 합쳐, 지금까지의 진행을 하나의 최신 요약으로 다시 쓴다. 이전 요약의 내용 중 여전히 유효한 것은 유지하고, 바뀐 것은 고치고, 새로 생긴 것은 더한다.
+항목마다 한두 줄로 쓴다: 현재 시점(세계 내 날짜·시각)과 장소, 사용자 캐릭터 상태, 주요 사건, 인물 관계 변화, 미해결 떡밥·약속·예고된 사건.
+장면 묘사와 대사는 넣지 않으며, 전체 20줄 안팎으로 맞춘다. 요약만 출력한다.`;
 
-            const text = await API.callLLM([{role:'user', parts:[{text: `[대화 내역]\n\n${histText}`}]}], sysPrompt); 
+            const text = await API.callLLM([{role:'user', parts:[{text: `[이전 요약]\n${prevSummary || '없음'}\n\n[최근 대화]\n\n${histText}`}]}], sysPrompt); 
             
-            let mem = r.memory || ""; 
-            mem += (mem ? "\n\n" : "") + "[자동 요약]\n" + text; 
-            const blocks = mem.split('[자동 요약]'); 
-            if(blocks.length > 4) mem = blocks[0] + '[자동 요약]' + blocks.slice(-3).join('[자동 요약]'); 
+            mem = (manual ? manual + "\n\n" : "") + "[자동 요약]\n" + text.trim(); 
             
             r.memory = mem; 
             document.getElementById('room-memory-input').value = r.memory; 
@@ -433,7 +440,7 @@ window.App = {
             nr.name = t.name + " (새 회차)"; 
             nr.history = []; 
             nr.memory = ''; 
-            nr.networkArchive = ''; 
+            nr.net = {}; 
             nr.transientCharIds = {}; 
             nr.baitRecoveryNextTurn = false;
             nr.tone = 'normal';
@@ -479,7 +486,7 @@ window.App = {
             memory: '', 
             globalStatus: '', 
             currentLocIdx: -1, 
-            networkArchive: '', 
+            net: {}, 
             tagIds: [Store.ensureWorldTag(worldClone.name)].filter(x => x),
             transientCharIds: {}, 
             baitRecoveryNextTurn: false,
