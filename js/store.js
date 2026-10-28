@@ -54,6 +54,7 @@ window.Store = {
             this.state.worlds.forEach(w => { if(!w.keywords) w.keywords = []; });
 
             // 기존 시나리오에 세계관 태그를 한 번만 자동으로 붙인다 (사용자가 지운 태그가 다시 생기지 않도록 플래그로 관리)
+            this.cleanupTags();
             if(!this.state.worldTagsMigrated) {
                 this.state.rooms.forEach(r => { const tId = this.ensureWorldTag(r.worldInstance?.name); if(tId && !r.tagIds.includes(tId)) r.tagIds.push(tId); });
                 this.state.worldTagsMigrated = true;
@@ -145,6 +146,14 @@ window.Store = {
         return t.id;
     },
 
+    // 어떤 시나리오에도 붙어 있지 않은 태그를 지운다. ids를 주면 그 태그만 검사.
+    cleanupTags: function(ids) {
+        const used = new Set(); this.state.rooms.forEach(r => (r.tagIds || []).forEach(t => used.add(t)));
+        const before = this.state.roomTags.length;
+        this.state.roomTags = this.state.roomTags.filter(t => used.has(t.id) || (ids && !ids.includes(t.id)));
+        if(this.state.roomTags.length !== before) this.forceSave();
+    },
+
     getActiveRoom: function() { return this.state.rooms.find(r => r.id === this.state.activeRoomId); },
     getTargetWorld: function() { if(this.state.activeRoomId) return this.getActiveRoom().worldInstance; return this.state.worlds.find(w => w.id === this.state.activeWorldId); },
     updateRoomState: function(key, val) { const r = this.getActiveRoom(); if(r) { r[key] = val; this.forceSave(); } },
@@ -163,17 +172,22 @@ window.Store = {
         w.prompt = document.getElementById('w-d')?.value ?? w.prompt; 
         w.bgUrl = document.getElementById('w-url')?.value ?? w.bgUrl;
         
-        w.factions.forEach(f => { f.name = document.getElementById(`f-n-${f.id}`)?.value ?? f.name; f.desc = document.getElementById(`f-d-${f.id}`)?.value ?? f.desc; f.secret = document.getElementById(`f-s-${f.id}`)?.value ?? f.secret; });
         w.loreFolders.forEach(lf => { lf.name = document.getElementById(`lf-n-${lf.id}`)?.value ?? lf.name; lf.desc = document.getElementById(`lf-d-${lf.id}`)?.value ?? lf.desc; });
         w.lores.forEach(l => { l.keyword = document.getElementById(`l-n-${l.id}`)?.value ?? l.keyword; l.desc = document.getElementById(`l-d-${l.id}`)?.value ?? l.desc; l.folderId = document.getElementById(`l-fld-${l.id}`)?.value ?? l.folderId; l.triggerLocId = document.getElementById(`l-trig-${l.id}`)?.value ?? l.triggerLocId; });
         w.regions.forEach(reg => { reg.name = document.getElementById(`reg-n-${reg.id}`)?.value ?? reg.name; reg.desc = document.getElementById(`reg-d-${reg.id}`)?.value ?? reg.desc; });
         w.locations.forEach(loc => { loc.name = document.getElementById(`loc-n-${loc.id}`)?.value ?? loc.name; loc.desc = document.getElementById(`loc-d-${loc.id}`)?.value ?? loc.desc; loc.regionId = document.getElementById(`loc-r-${loc.id}`)?.value ?? loc.regionId; });
     },
-    saveWorld: function() { this.syncWorldDOM(); this.syncCharDOM(); this.forceSave(); UI.renderWorld(); UI.showToast("세계관이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); else UI.renderWorldTemplateList(); },
+    // 열려 있는 패널의 입력칸만 읽는다 (닫힌 패널에는 다른 세계관의 예전 값이 남아 있을 수 있음)
+    syncOpenPanels: function() {
+        if(document.getElementById('world-panel').classList.contains('open')) this.syncWorldDOM();
+        if(document.getElementById('char-panel').classList.contains('open')) this.syncCharDOM();
+    },
+
+    saveWorld: function() { this.syncWorldDOM(); this.forceSave(); UI.renderWorld(); UI.showToast("세계관이 저장되었습니다."); if(this.state.activeRoomId) App.loadActiveRoom(); else UI.renderWorldTemplateList(); },
     
     removeKeyword: function(k) { const w = this.getTargetWorld(); if(w && w.keywords) { w.keywords = w.keywords.filter(x => x !== k); this.forceSave(); UI.renderKeywords(); UI.renderWorld(); } },
 
-    addFaction: function() { const w = this.getTargetWorld(); this.syncWorldDOM(); w.factions.push({ id:'f_'+Date.now(), name:'', desc:'', secret:'' }); this.forceSave(); UI.renderWorld(); },
+    addFaction: function() { const w = this.getTargetWorld(); this.syncOpenPanels(); const f = { id:'f_'+Date.now(), name:'', desc:'', secret:'' }; w.factions.push(f); this.forceSave(); UI.refreshOpenPanel(); UI.openDetails([`det-fg-${f.id}`, `det-f-${f.id}`]); },
     addLoreFolder: function() { const w = this.getTargetWorld(); this.syncWorldDOM(); w.loreFolders.push({ id:'lf_'+Date.now(), name:'', desc:'' }); this.forceSave(); UI.renderWorld(); },
     addLore: function(fId) { const w = this.getTargetWorld(); this.syncWorldDOM(); w.lores.push({ id:'l_'+Date.now(), folderId: fId, keyword:'', desc:'', triggerLocId:'' }); this.forceSave(); UI.renderWorld(); },
     addRegion: function() { const w = this.getTargetWorld(); this.syncWorldDOM(); w.regions.push({ id:'reg_'+Date.now(), name:'', desc:'' }); this.forceSave(); UI.renderWorld(); },
@@ -181,8 +195,8 @@ window.Store = {
     
     delWorldItem: function(type, id, e) {
         if(e) e.stopPropagation(); if(!confirm("삭제하시겠습니까?")) return;
-        const w = this.getTargetWorld(); this.syncWorldDOM();
-        if(type==='f') w.factions = w.factions.filter(x=>x.id!==id);
+        const w = this.getTargetWorld(); this.syncOpenPanels();
+        if(type==='f') { w.factions = w.factions.filter(x=>x.id!==id); w.characters.forEach(c => { if(c.factionIds) c.factionIds = c.factionIds.filter(fid => fid !== id); }); }
         if(type==='lf') { w.loreFolders = w.loreFolders.filter(x=>x.id!==id); w.lores.forEach(l=>{ if(l.folderId===id) l.folderId=''; }); }
         if(type==='l') w.lores = w.lores.filter(x=>x.id!==id);
         if(type==='reg') { w.regions = w.regions.filter(x=>x.id!==id); w.locations.forEach(loc=>{ if(loc.regionId===id) loc.regionId=''; }); }
@@ -190,11 +204,12 @@ window.Store = {
             const idx = w.locations.findIndex(x=>x.id===id);
             if(idx !== -1) { w.locations.splice(idx, 1); if(this.state.activeRoomId) { const r = this.getActiveRoom(); if(r.currentLocIdx === idx) r.currentLocIdx = -1; else if(r.currentLocIdx > idx) r.currentLocIdx--; } }
         }
-        this.forceSave(); UI.renderWorld();
+        this.forceSave(); UI.refreshOpenPanel();
     },
 
     syncCharDOM: function() {
         const w = this.getTargetWorld(); if(!w) return;
+        w.factions.forEach(f => { f.name = document.getElementById(`f-n-${f.id}`)?.value ?? f.name; f.desc = document.getElementById(`f-d-${f.id}`)?.value ?? f.desc; f.secret = document.getElementById(`f-s-${f.id}`)?.value ?? f.secret; });
         w.characters.forEach(c => {
             c.keyword = document.getElementById(`c-n-${c.id}`)?.value ?? c.keyword;
             c.desc = document.getElementById(`c-d-${c.id}`)?.value ?? c.desc;
@@ -211,8 +226,8 @@ window.Store = {
     toggleActiveNpc: function(id) { const r = this.getActiveRoom(); if(!r) return; this.syncCharDOM(); if(r.activeCharIds.includes(id)) r.activeCharIds = r.activeCharIds.filter(x => x !== id); else r.activeCharIds.push(id); this.forceSave(); UI.renderCharacters(); App.loadActiveRoom(); },
     setMyChar: function(id) { const r = this.getActiveRoom(); if(!r) return; this.syncCharDOM(); r.myCharId = id; r.activeCharIds = r.activeCharIds.filter(x => x !== id); this.forceSave(); UI.renderCharacters(); App.loadActiveRoom(); },
     toggleHidden: function(id) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === id); if(c) { this.syncCharDOM(); c.isHidden = !c.isHidden; this.forceSave(); UI.renderCharacters(); } },
-    addFacTag: function(cId, selEl) { const fId = selEl.value; if(!fId) return; selEl.value = ''; const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; if(!arr.includes(fId)) { arr.push(fId); hid.value = arr.join(','); UI.renderFacTags(cId); } },
-    removeFacTag: function(cId, fId) { const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; arr = arr.filter(x => x !== fId); hid.value = arr.join(','); UI.renderFacTags(cId); },
+    addFacTag: function(cId, selEl) { const fId = selEl.value; if(!fId) return; selEl.value = ''; const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; if(!arr.includes(fId)) { arr.push(fId); hid.value = arr.join(','); this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.focusChar(cId, fId); } },
+    removeFacTag: function(cId, fId) { const hid = document.getElementById(`c-f-hid-${cId}`); let arr = hid.value ? hid.value.split(',') : []; arr = arr.filter(x => x !== fId); hid.value = arr.join(','); this.syncCharDOM(); this.forceSave(); UI.renderCharacters(); UI.focusChar(cId); },
     addStat: function(cId) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c) { this.syncCharDOM(); if(!c.stats) c.stats = []; c.stats.push({ n:'', v:50, active:true }); this.forceSave(); UI.renderCharacters(); } },
     delStat: function(cId, sIdx) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && confirm("스탯을 삭제하시겠습니까?")) { this.syncCharDOM(); c.stats.splice(sIdx, 1); this.forceSave(); UI.renderCharacters(); } },
     upStat: function(cId, sIdx, key, val) { const w = this.getTargetWorld(); const c = w.characters.find(x => x.id === cId); if(c && c.stats[sIdx]) { c.stats[sIdx][key] = (key==='v' ? Number(val) : val); this.forceSave(); } },

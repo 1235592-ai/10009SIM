@@ -37,41 +37,42 @@ window.App = {
             if (pop && pop.classList.contains('open')) { if (!pop.contains(e.target) && !btn.contains(e.target)) { if(history.state && history.state.popover) { history.back(); } else { UI.internalClosePopover(); } } }
         });
 
-        const worldPanel = document.getElementById('world-panel');
-        if(worldPanel) {
-            worldPanel.addEventListener('focusin', (e) => {
-                if(e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
-                    let type = 'unknown'; let typeKor = ''; let titleEl = null; let descEl = null;
-
-                    if(e.target.id === 'w-k-input') {
-                        type = 'keywords';
-                    } else if(e.target.id === 'w-n' || e.target.id === 'w-d') {
-                        type = 'basic'; typeKor = '기본 설정';
-                        titleEl = document.getElementById('w-n'); descEl = document.getElementById('w-d');
-                    } else {
-                        const itemCard = e.target.closest('.item-card, .folder-box, .card-faction');
-                        if(itemCard) {
-                            titleEl = itemCard.querySelector('input[type="text"]');
-                            descEl = itemCard.querySelector('textarea');
-                            if(itemCard.classList.contains('card-faction')) { type = 'faction'; typeKor = '세력'; }
-                            else if(e.target.id.includes('lf-')) { type = 'loreFolder'; typeKor = '지식(대분류)'; }
-                            else if(e.target.id.includes('l-')) { type = 'lore'; typeKor = '지식(상세)'; }
-                            else if(e.target.id.includes('reg-')) { type = 'region'; typeKor = '지역(대분류)'; }
-                            else if(e.target.id.includes('loc-')) { type = 'location'; typeKor = '장소(상세)'; }
-                        }
-                    }
-
-                    if(type !== 'unknown') {
-                        UI.lastFocusedWorldInput = { type, typeKor, titleEl, descEl };
-                        const mBtn = document.getElementById('magic-btn');
-                        if(mBtn) { mBtn.disabled = false; mBtn.style.opacity = '1'; mBtn.style.boxShadow = '0 0 10px rgba(99, 102, 241, 0.6)'; }
-                    }
-                }
-            });
-        }
+        document.getElementById('world-panel').addEventListener('focusin', (e) => this.onPanelFocus(e, 'magic-btn'));
+        document.getElementById('char-panel').addEventListener('focusin', (e) => this.onPanelFocus(e, 'magic-btn-char'));
 
         document.getElementById('lobby-container').classList.remove('hidden');
         UI.renderScenarioList(); UI.renderWorldTemplateList(); UI.renderSafetyUI();
+    },
+
+    // 🪄 버튼이 채울 대상(마지막으로 커서를 둔 칸)을 기억한다
+    onPanelFocus: function(e, btnId) {
+        if(e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') return;
+        let type = 'unknown'; let typeKor = ''; let titleEl = null; let descEl = null;
+
+        if(e.target.id === 'w-k-input') {
+            type = 'keywords';
+        } else if(e.target.id === 'w-n' || e.target.id === 'w-d') {
+            type = 'basic'; typeKor = '기본 설정';
+            titleEl = document.getElementById('w-n'); descEl = document.getElementById('w-d');
+        } else {
+            const itemCard = e.target.closest('.card-char, .card-faction, .item-card, .folder-box');
+            if(itemCard) {
+                titleEl = itemCard.querySelector('input[type="text"]');
+                descEl = itemCard.querySelector('textarea');
+                if(itemCard.classList.contains('card-char')) { if(itemCard.dataset.cid !== 'sys') { type = 'character'; typeKor = '인물'; } }
+                else if(itemCard.classList.contains('card-faction')) { type = 'faction'; typeKor = '세력'; }
+                else if(e.target.id.includes('lf-')) { type = 'loreFolder'; typeKor = '지식(대분류)'; }
+                else if(e.target.id.includes('l-')) { type = 'lore'; typeKor = '지식(상세)'; }
+                else if(e.target.id.includes('reg-')) { type = 'region'; typeKor = '지역(대분류)'; }
+                else if(e.target.id.includes('loc-')) { type = 'location'; typeKor = '장소(상세)'; }
+            }
+        }
+
+        if(type !== 'unknown') {
+            UI.lastFocusedWorldInput = { type, typeKor, titleEl, descEl };
+            const mBtn = document.getElementById(btnId);
+            if(mBtn) { mBtn.disabled = false; mBtn.style.opacity = '1'; mBtn.style.boxShadow = '0 0 10px rgba(99, 102, 241, 0.6)'; }
+        }
     },
 
     handleKeywordInput: function(e) {
@@ -182,7 +183,8 @@ window.App = {
             }
             
             if(target.descEl) UI.autoResize(target.descEl);
-            Store.saveWorld(); UI.showToast("마법 연성이 완료되었습니다!");
+            if(document.getElementById('char-panel').classList.contains('open')) Store.saveCharacters(); else Store.saveWorld();
+            UI.showToast("마법 연성이 완료되었습니다!");
         } catch(e) {
             alert("생성 실패: " + e.message);
         } finally {
@@ -454,7 +456,7 @@ window.App = {
     deleteRoomTag: function(id) { if(!confirm("영구 삭제하시겠습니까?")) return; Store.state.roomTags = Store.state.roomTags.filter(x=>x.id!==id); Store.state.rooms.forEach(r => { r.tagIds = r.tagIds.filter(tid=>tid!==id); }); Store.forceSave(); UI.renderScenarioList(); UI.renderTagManageList(); },
     addRoomTag: function(rId, selEl, e) { e.stopPropagation(); let tId = selEl.value; if(!tId) return; selEl.value = '';
         if(tId === '__new') { tId = this.createRoomTag(prompt("새 태그 이름을 입력하세요.")); if(!tId) return; } const r = Store.state.rooms.find(x => x.id === rId); if(!r.tagIds.includes(tId)) { r.tagIds.push(tId); Store.forceSave(); UI.renderScenarioList(); } },
-    removeRoomTag: function(rId, tId, e) { e.stopPropagation(); const r = Store.state.rooms.find(x => x.id === rId); r.tagIds = r.tagIds.filter(id => id !== tId); Store.forceSave(); UI.renderScenarioList(); },
+    removeRoomTag: function(rId, tId, e) { e.stopPropagation(); const r = Store.state.rooms.find(x => x.id === rId); r.tagIds = r.tagIds.filter(id => id !== tId); Store.cleanupTags([tId]); Store.forceSave(); UI.renderScenarioList(); },
     editRoomInfo: function(id) { document.getElementById('edit-room-id').value = id; document.getElementById('edit-room-name').value = Store.state.rooms.find(x => x.id === id).name; UI.openModal('edit-room-modal'); },
     saveRoomInfo: function() { const r = Store.state.rooms.find(x => x.id === document.getElementById('edit-room-id').value); if(r) { r.name = document.getElementById('edit-room-name').value.trim() || '시나리오'; Store.forceSave(); UI.renderScenarioList(); } UI.closeModal('edit-room-modal'); },
     cloneRoom: function(id) { 
@@ -482,8 +484,10 @@ window.App = {
     
     deleteRoom: function(id) { 
         if(confirm("삭제하시겠습니까?")) { 
+            const tagIds = Store.state.rooms.find(x=>x.id===id)?.tagIds || [];
             Store.state.rooms = Store.state.rooms.filter(x=>x.id!==id); 
             Store.removeRoomDB(id); 
+            Store.cleanupTags(tagIds); 
             Store.forceSave(); 
             UI.renderScenarioList(); 
         } 
