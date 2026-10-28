@@ -5,42 +5,38 @@ window.Net = {
     busy: false,
     openId: null,
     search: { community: null, darkweb: null },   // { query, posts } — 저장하지 않는 검색 결과
-    POSTS_PER_PAGE: 3,
+    POSTS_PER_PAGE: 5,
     SEEN_LIMIT: 30,
 
-    // ---------- 출력 규칙 (네트워크 문서 기준) ----------
+    // ---------- 출력 규칙 ----------
+    // 여기 있는 건 모든 세계관 공통 규칙이다. 말머리, 사이트 이름, 단골 소재 같은 세계관별 내용은
+    // 템플릿의 "📡 정보망 지침" 칸(w.netRules)에서 받는다.
     COMMON_RULES: `- 너는 이야기 밖의 화면 생성기다. 인사, 설명, 사담 없이 지정된 JSON 객체만 반환한다.
-- 공개된 정보만 반영한다. 비공개 사정, 숨긴 능력, 관리청·길드 내부 사정, 비밀은 추측이나 루머 형태로만 나온다.
-- 세계의 시간은 최근 진행과 상황 요약을 따른다. 현실 시각을 쓰지 않는다. 작성 시간은 "3시간 전", "어제"처럼 상대 표기로 쓴다.
-- 「인물」 데이터의 인물 본인은 그 인물이 글이나 메시지를 쓸 개연성이 분명할 때만 등장시킨다. 기본적으로 작성자는 무명이다.`,
+- 공개된 정보만 반영한다. 비공개 사정, 숨긴 능력, 조직 내부 사정, 비밀은 추측이나 루머 형태로만 나온다.
+- 세계의 시간은 최근 진행과 상황 요약을 따른다. 현실 시각을 쓰지 않는다. 목록의 작성 시간은 "3시간 전", "어제"처럼 상대 표기로 쓴다.
+- 인물 데이터의 인물 본인은 그 인물이 글이나 메시지를 쓸 개연성이 분명할 때만 등장시킨다. 기본적으로 작성자는 무명이다.
+- 성적 소재의 대상은 설정상 성인인 인물로 한정한다. 설정상 성인이면 교복풍 의상, 동안 외모 같은 겉모습과 관계없이 성인으로 취급한다. 미성년자는 성적 소재로 다루지 않는다.`,
 
     WRITER_RULES: `[작성자와 말투]
-- 작성자는 일반인, 하위 등급 헌터, 길드 관계자, 기자, 안티, 헌터 팬 등 다양하다. 닉네임은 그 사람의 성향이 드러나게 짓고, 글의 말투를 닉네임과 맞춘다.
+- 작성자는 다양하다. 닉네임은 그 사람의 성향이 드러나게 짓고, 글의 말투를 닉네임과 맞춘다.
 - 한 작성자는 제목과 본문을 포함한 글 하나 안에서 어미, 격식, 줄임말 사용 정도를 바꾸지 않는다. 단, 의도적인 어그로 제목은 본문과 말투가 달라도 된다. 같은 닉네임이 다시 나오면 같은 말투를 쓴다.
-- 작성자마다 말투와 길이를 다르게 한다. 기자는 기사체, 팬은 호들갑, 안티는 비꼬는 투, 하위 헌터는 푸념처럼 쓰고, 어미(반말, 존댓말, 해요체, 음슴체, 다나까)도 작성자마다 달리한다. 댓글 길이는 한두 단어부터 여러 문장까지 섞는다.
+- 작성자마다 말투와 길이를 다르게 한다. 기자는 기사체, 팬은 호들갑, 안티는 비꼬는 투처럼 그 사람이 쓸 법하게 쓰고, 어미(반말, 존댓말, 해요체, 음슴체, 다나까)도 작성자마다 달리한다. 댓글 길이는 한두 단어부터 여러 문장까지 섞는다.
 - 한 출력 안에서 같은 어미를 쓰는 작성자가 절반을 넘지 않게 한다.
 - 기사체, 존댓말, 다나까를 쓰는 작성자는 초성체(ㄹㅇ, ㅇㅇ), 비속어, 인터넷 줄임말을 쓰지 않는다. 초성체와 비속어는 반말이나 음슴체를 쓰는 작성자만 쓴다.`,
 
-    COMMUNITY_RULES: `[커뮤니티]
-- 헌터용 통합 네트워크의 일반 게시판이다. 월간 활성 이용자 300만~500만, 글이나 댓글을 쓰는 사람은 그중 수십만이다.
-- 말머리(tag): [공지] [자유] [질문] [공략] [사건사고] [랭킹] [마켓] [팬] [토론] [뉴스] [익명] [가이츠] 중 하나.
-  - [마켓]: 거래 후기와 시세 이야기. [익명]: 헌터 등급 표기가 숨겨진다. 폭로, 내부 불만이 주로 올라온다. [가이츠]: 가이츠의 기행 모아보기 겸 격리 탭.
-- 작성자 등급(grade): 헌터는 "C급"처럼, 은퇴 헌터는 "은퇴·B급"처럼 쓴다. 일반인은 빈 문자열. [익명] 글과 그 댓글은 모두 빈 문자열.
-- 수치: 일반 글은 댓글 수십 개, 추천 수십~수백. 인기글은 추천 1,000 이상, 댓글 수백(popular=true). 대형 화제(S급 사고, 대형 게이트)는 댓글 수천, 추천 1만 안팎이 상한. 조회수는 없다.
-- 의견은 갈리며 오해, 과장, 루머, 등급 차별, 뒷북이 섞인다.
-- 헌터는 운동선수나 아이돌 같은 공인 취급이다. 목격 사진, 직찍, 경기 사진은 흔히 올라오며, 심한 사생활 침해(집 주소, 가족 신상, 가이츠·필그림의 맨얼굴 폭로 등)가 아니면 지나치게 조심하지 않는다. 심한 침해 글은 삭제되거나 비난받는다. 목격담은 주로 [자유]에 올라온다.
-- 단골 소재: 분기 레이트 순위 갱신, 랭킹전과 랭킹 변동, 아레나 리그, 단독 토벌 성공·부상, 버스 의혹, 서포터 등급제 논쟁, 헌터 팬덤, 연예계 특화 헌터에 대한 "실력보다 얼굴" 비판, 버뱅크 영상, 박다니엘 은퇴와 대균열에 대한 뒷말, 헌터의 식욕·성욕에 대한 희롱성 농담.`,
+    COMMUNITY_RULES: `[커뮤니티 기본 규칙]
+- 이 세계의 온라인 커뮤니티 일반 게시판이다. 성격과 세부 사항은 [세계관 커뮤니티 설정]을 따른다.
+- 말머리(tag): 세계관 설정에 목록이 있으면 그중 하나를 쓰고, 없으면 [자유] [질문] [정보] [사건사고] [토론] [뉴스] [익명] 중 하나를 쓴다.
+- 작성자 표기(grade): 세계관 설정의 표기 방식을 따른다. 정해진 게 없거나 일반인이면 빈 문자열. [익명] 글과 그 댓글은 모두 빈 문자열.
+- 수치: 일반 글은 댓글 수십 개, 추천 수십~수백. 인기글은 추천 1,000 이상, 댓글 수백(popular=true). 대형 화제는 댓글 수천, 추천 1만 안팎이 상한. 조회수는 없다.
+- 의견은 갈리며 오해, 과장, 루머, 뒷북이 섞인다.`,
 
-    DARKWEB_RULES: `[다크웹 광장 (🧱 Bystreet)]
-- 헌터넷 바깥의 불법 사이트 Bystreet의 익명 잡담 구획이다. 운영 주체는 생흔이라는 소문이 있으나 진위는 불명이다.
-- 이용자는 헌터넷 커뮤니티를 검열이 심하고 위선적인 곳으로 보고 비웃는다. 헌터넷에서 삭제된 글이 퍼 날라지기도 한다.
-- 소문을 사실로 단정하거나 근거 없는 루머를 만들어 퍼뜨리는 일이 흔하다. 확인된 정보와 지어낸 말이 구분 없이 섞인다.
-- 헌터 목격 사진, 몰래 찍은 사진, 사생활 사진이 그대로 올라온다. 헌터 얼굴을 외설적인 사진에 합성한 합성물도 자주 올라온다.
-- 비밀 정보는 여기서도 사실로 드러나지 않는다. 가이츠·필그림의 맨얼굴이라며 올라오는 사진은 가짜이거나 진위를 확인할 수 없는 것으로 남는다.
+    DARKWEB_RULES: `[다크웹 광장 기본 규칙]
+- 이 세계의 불법·익명 사이트의 광장(익명 잡담 구획)이다. 사이트 이름, 운영 소문, 이용자 성향, 수위는 [세계관 다크웹 설정]을 따른다.
 - 작성자는 모두 "익명", 등급은 빈 문자열, 말머리(tag)는 "광장".
 - 말투의 격식 묶음 규칙은 적용하지 않는다. 욕설, 비속어, 초성체, 인터넷 은어를 거르지 않는다.
-- 내용은 헌터에 대한 노골적인 성적 대상화, 음담, 심한 비하와 혐오, 신상 캐기, 관리청·길드 욕 등이다. 일반 커뮤니티에서 삭제될 수위를 기본으로 한다.
-- 외관상 미성년으로 보이는 인물은 성적 소재로 다루지 않는다.
+- 소문을 사실로 단정하거나 근거 없는 루머를 만들어 퍼뜨리는 일이 흔하다. 확인된 정보와 지어낸 말이 구분 없이 섞인다.
+- 비밀 정보는 여기서도 사실로 드러나지 않는다. 폭로라며 올라오는 것은 가짜이거나 진위를 확인할 수 없는 것으로 남는다.
 - 수치: 일반 글 추천 수십, 화제 글 추천 수백, 댓글 수십~수백.`,
 
     POST_BODY_RULES: `[게시글 본문과 댓글]
@@ -49,13 +45,40 @@ window.Net = {
 - 댓글: 정확히 10개. 댓글 안에서 줄바꿈하지 않는다. 사진이나 짤은 첨부할 수 없고 이모지는 쓸 수 있다.
 - 답댓글(replies): 모든 댓글에 달지 않고 논쟁이나 대화가 붙을 만한 곳에만 단다. 댓글 10개에 포함하지 않는다.`,
 
-    INBOX_RULES: `[수신함]
-- 사용자 캐릭터 개인 앞으로 오는 채널이다. 단체방은 없다.
-- 종류(kind): official(공문: 관리청·길드의 공식 문서, 헌터·보조 자격증 소지자 계정에만 온다), message(1:1 메시지), alert(거래, 모집, 지급 등 자동 알림).
-- 공문·알림은 제목만 미리보기로 쓴다. 메시지는 마지막 메시지 앞부분을 발신자 말투 그대로 25자 안팎까지 쓰고 "..."로 끊는다.
-- 발신자는 이름만 쓰고 등급을 붙이지 않는다.
-- 종류마다 2~3개. 안 읽은 것이 먼저, 그다음 최신순.
-- 공문·알림에는 커뮤니티 말투 규칙을 적용하지 않는다. 메시지는 발신자 본인의 말투로 쓴다.`,
+    INBOX_RULES: `[수신함 기본 규칙]
+- 사용자 캐릭터 개인 앞으로 오는 채널이다. 세부 사항은 [세계관 수신함 설정]을 따른다.
+- 종류(kind): official(공문: 기관·조직의 공식 문서), message(1:1 메시지), alert(거래, 지급 등 자동 알림).
+- 개수: 메시지와 알림을 합쳐 5개 이상, 공문은 0~3개.
+- 목록 미리보기(preview): 공문·알림은 제목만 쓴다. 메시지는 마지막 메시지 앞부분을 발신자 말투 그대로 25자 안팎까지 쓰고 "..."로 끊는다.
+- 발신자는 이름만 쓰고 등급을 붙이지 않는다. 안 읽은 것이 먼저, 그다음 최신순.`,
+
+    MESSAGE_RULES: `[메시지 대화 규칙]
+- 메시지는 보낸 사람 본인의 말투와 성격대로 쓴다. 공문·알림의 격식을 메시지에 입히지 않는다.
+- 메시지 본문은 끝까지 쓴다. "..."로 자르지 않는다. (목록 미리보기와 다르다)
+- 이미 오간 말을 반복하지 않는다. 대화가 이미 마무리됐으면 더 쓰지 않는다.`,
+
+    // "헌터 세계관 예시 넣기" 버튼이 채우는 내용 (원래 네트워크 문서의 세계관 고유 부분)
+    HUNTER_EXAMPLE: {
+        community: `- 헌터용 통합 네트워크(HUNTER Net)의 커뮤니티. 월간 활성 이용자 300만~500만, 글이나 댓글을 쓰는 사람은 그중 수십만이며 대부분은 보기만 한다.
+- 말머리: [공지] [자유] [질문] [공략] [사건사고] [랭킹] [마켓] [팬] [토론] [뉴스] [익명] [가이츠]
+  - [마켓]: 거래 후기와 시세 이야기. [익명]: 헌터 등급 표기가 숨겨진다. 폭로, 내부 불만 같은 글이 주로 올라온다. [가이츠]: 가이츠의 기행이 너무 많아서, 모아보기 겸 격리 목적으로 사용자 투표를 거쳐 신설됐다.
+- 작성자 표기: 헌터는 등급(예: "C급"), 은퇴 헌터는 은퇴 표기와 등급(예: "은퇴·B급"), 일반인은 표기 없음.
+- 작성자는 일반인, 하위 등급 헌터, 길드 관계자, 기자, 안티, 헌터 팬 등 다양하다. 하위 헌터는 푸념처럼 쓴다.
+- 헌터는 운동선수나 아이돌 같은 공인 취급이다. 목격 사진, 직찍, 경기 사진은 흔히 올라오며, 심한 사생활 침해(집 주소, 가족 신상, 가이츠·필그림의 맨얼굴 폭로 등)가 아니면 사진을 피하거나 지나치게 조심하지 않는다. 심한 침해 글은 삭제되거나 비난받는다. 목격담은 주로 [자유]에 올라온다.
+- 의견에는 등급 차별도 섞인다.
+- 단골 소재: 분기 레이트 순위 갱신, 랭킹전과 랭킹 변동, 아레나 리그, 단독 토벌 성공·부상, 버스 의혹, 서포터 등급제 논쟁, 헌터 팬덤, 연예계 특화 헌터에 대한 "실력보다 얼굴" 비판, 버뱅크 영상, 박다니엘 은퇴와 대균열에 대한 뒷말, 헌터의 식욕·성욕에 대한 희롱성 농담.`,
+        darkweb: `- 사이트 이름: 🧱 Bystreet. HUNTER Net 바깥의 불법 사이트. 회색지대이거나 명백히 불법인 의뢰와 거래, 걸러지지 않은 익명 잡담이 오간다.
+- 운영 주체는 생흔이라는 소문이 있으나 진위는 불명이다. 관리청도 존재를 알고 있어 가끔 셧다운되지만, 주소만 바꿔 금방 되살아난다.
+- 이용자는 헌터넷 커뮤니티를 좋아하지 않는다. 검열이 심하고 위선적인 곳으로 보고 비웃는다. 헌터넷에서 삭제된 글이 이쪽으로 퍼 날라지기도 한다.
+- 헌터 목격 사진을 찍어 노골적으로 퍼뜨리는 경우가 많다. 헌터넷이라면 삭제될 몰래 찍은 사진이나 사생활 사진도 그대로 올라온다.
+- 광장에는 헌터 얼굴을 외설적인 사진에 합성한 합성물이 자주 올라온다.
+- 가이츠·필그림의 맨얼굴이라며 올라오는 사진은 가짜이거나 진위를 확인할 수 없는 것으로 남는다.
+- 내용은 헌터에 대한 노골적인 성적 대상화, 음담, 심한 비하와 혐오, 신상 캐기, 관리청·길드 욕 등이다. 일반 커뮤니티에서 삭제될 수위를 기본으로 한다.`,
+        inbox: `- HUNTER Net의 수신함. 단체방은 없다(단체 대화는 다른 플랫폼에서 한다는 설정).
+- 공문은 헌터 관리청·길드의 공식 문서이며, 헌터·헌터 업무 보조 자격증 소지자 계정에만 온다.
+- 알림은 거래소(마켓) 체결, 모집, 지급 등.
+- 계정 줄: 이름 · 등급 · 소속. 은퇴 헌터는 소속 자리에 "은퇴".`
+    },
 
     // ---------- 상태 ----------
     state: function(r) {
@@ -99,14 +122,20 @@ window.Net = {
     },
 
     // ---------- 게시판 (커뮤니티 / 다크웹 광장) ----------
-    boardRules: function(board) { return (board === 'community' ? this.COMMUNITY_RULES + '\n\n' + this.WRITER_RULES : this.DARKWEB_RULES); },
+    worldRules: function(r, key) { const t = (r.worldInstance.netRules || {})[key]; return t && t.trim() ? t.trim() : '(정해진 것 없음. 세계관 배경에 맞게 판단한다)'; },
+    boardRules: function(board, r) {
+        return board === 'community'
+            ? `${this.COMMUNITY_RULES}\n\n[세계관 커뮤니티 설정]\n${this.worldRules(r, 'community')}\n\n${this.WRITER_RULES}`
+            : `${this.DARKWEB_RULES}\n\n[세계관 다크웹 설정]\n${this.worldRules(r, 'darkweb')}`;
+    },
+    inboxRules: function(r, withList) { return `${withList ? this.INBOX_RULES : this.MESSAGE_RULES}\n\n[세계관 수신함 설정]\n${this.worldRules(r, 'inbox')}`; },
     POST_LIST_FORMAT: `{"posts":[{"tag":"말머리(괄호 없이)","title":"한 줄 안의 짧은 제목","author":"닉네임","grade":"등급 또는 빈 문자열","time":"상대 시간","up":숫자,"down":숫자,"comments":전체 댓글 수,"popular":true/false}]}`,
 
     refreshBoard: function(board) {
         const r = Store.getActiveRoom(); const st = this.state(r)[board];
         this.run(async () => {
             const kind = board === 'community' ? '커뮤니티 실시간 인기글' : '다크웹 광장 화제글';
-            const task = `${this.boardRules(board)}\n\n[작업]\n${kind} ${this.POSTS_PER_PAGE}개의 목록을 만든다. 현재 장면과 관련된 소식을 우선한다.${board === 'community' ? ' 모두 인기글이므로 추천 1,000 이상, popular=true.' : ''}\n- 아래 제목의 글은 이미 나왔으므로 다시 쓰지 않는다:\n${st.seen.map(t => '  - ' + t).join('\n') || '  (없음)'}\n\n[출력 JSON 형식]\n${this.POST_LIST_FORMAT}`;
+            const task = `${this.boardRules(board, r)}\n\n[작업]\n${kind} ${this.POSTS_PER_PAGE}개의 목록을 만든다. 현재 장면과 관련된 소식을 우선한다.${board === 'community' ? ' 모두 인기글이므로 추천 1,000 이상, popular=true.' : ''}\n- 아래 제목의 글은 이미 나왔으므로 다시 쓰지 않는다:\n${st.seen.map(t => '  - ' + t).join('\n') || '  (없음)'}\n\n[출력 JSON 형식]\n${this.POST_LIST_FORMAT}`;
             const data = await this.generate(task, r);
             st.posts = (data.posts || []).slice(0, this.POSTS_PER_PAGE).map(p => ({ ...p, id: this.uid('p'), detail: null }));
             st.seen = [...st.seen, ...st.posts.map(p => p.title)].slice(-this.SEEN_LIMIT);
@@ -118,7 +147,7 @@ window.Net = {
         if(!q) return;
         const r = Store.getActiveRoom();
         this.run(async () => {
-            const task = `${this.boardRules(board)}\n\n[작업]\n검색어 "${q}"와 관련된 게시글 ${this.POSTS_PER_PAGE}개의 목록을 만든다. 인기글이 아니어도 되며 수치는 기준을 따른다. 검색어가 문장이면 그 내용과 관련된 글을 고른다.\n\n[출력 JSON 형식]\n${this.POST_LIST_FORMAT}`;
+            const task = `${this.boardRules(board, r)}\n\n[작업]\n검색어 "${q}"와 관련된 게시글 ${this.POSTS_PER_PAGE}개의 목록을 만든다. 인기글이 아니어도 되며 수치는 기준을 따른다. 검색어가 문장이면 그 내용과 관련된 글을 고른다.\n\n[출력 JSON 형식]\n${this.POST_LIST_FORMAT}`;
             const data = await this.generate(task, r);
             this.search[board] = { query: q, posts: (data.posts || []).slice(0, this.POSTS_PER_PAGE).map(p => ({ ...p, id: this.uid('p'), detail: null })) };
             this.openId = null;
@@ -135,7 +164,7 @@ window.Net = {
         if(post.detail) return this.render();
         const r = Store.getActiveRoom();
         this.run(async () => {
-            const task = `${this.boardRules(board)}\n\n${this.POST_BODY_RULES}\n\n[작업]\n아래 게시글의 본문과 댓글을 쓴다. 목록에 표시된 제목, 작성자, 수치와 일치하게 쓴다.\n${JSON.stringify({ tag: post.tag, title: post.title, author: post.author, grade: post.grade, time: post.time, up: post.up, down: post.down, comments: post.comments })}\n\n[출력 JSON 형식]\n{"body":"본문 (문단 사이 빈 줄)","comments":[{"author":"닉네임","grade":"등급 또는 빈 문자열","text":"내용","up":숫자,"down":숫자,"replies":[{"author":"","grade":"","text":"","up":숫자,"down":숫자}]}]}`;
+            const task = `${this.boardRules(board, r)}\n\n${this.POST_BODY_RULES}\n\n[작업]\n아래 게시글의 본문과 댓글을 쓴다. 목록에 표시된 제목, 작성자, 수치와 일치하게 쓴다.\n${JSON.stringify({ tag: post.tag, title: post.title, author: post.author, grade: post.grade, time: post.time, up: post.up, down: post.down, comments: post.comments })}\n\n[출력 JSON 형식]\n{"body":"본문 (문단 사이 빈 줄)","comments":[{"author":"닉네임","grade":"등급 또는 빈 문자열","text":"내용","up":숫자,"down":숫자,"replies":[{"author":"","grade":"","text":"","up":숫자,"down":숫자}]}]}`;
             const data = await this.generate(task, r);
             post.detail = { body: data.body || '', comments: (data.comments || []).slice(0, 10) };
         });
@@ -155,12 +184,14 @@ window.Net = {
         const r = Store.getActiveRoom(); const st = this.state(r).inbox;
         this.run(async () => {
             const prev = st.items.map(i => ({ id: i.id, kind: i.kind, from: i.from, time: i.time, read: i.read, preview: i.preview }));
-            const task = `${this.INBOX_RULES}\n\n[작업]\n사용자 캐릭터의 수신함 목록을 만든다.\n- 계정 줄(account): 이름 · 등급 · 소속을 한 줄로. 은퇴 헌터는 소속 자리에 "은퇴". 사용자 캐릭터 설명에서 읽는다.\n- 이전 목록이 있으면 같은 항목은 id를 그대로 두고 유지하되, 시간 경과에 맞게 경과 시간만 고친다. 내용과 수치는 상황이 바뀌었거나 세계 시간이 많이 지난 경우에만 바꾼다. 새 항목은 id를 null로 둔다. 오래된 항목은 빠질 수 있다.\n- 이전 목록: ${JSON.stringify(prev)}\n\n[출력 JSON 형식]\n{"account":"이름 · 등급 · 소속","items":[{"id":"기존 id 또는 null","kind":"official|message|alert","from":"발신자","time":"경과 시간","read":true/false,"preview":"미리보기"}]}`;
+            const task = `${this.inboxRules(r, true)}\n\n[작업]\n사용자 캐릭터의 수신함 목록을 만든다.\n- 계정 줄(account): 세계관 수신함 설정의 계정 줄 형식을 따르고, 정해진 게 없으면 이름 · 신분이나 소속을 한 줄로 쓴다. 사용자 캐릭터 설명에서 읽는다.\n- 이전 목록이 있으면 같은 항목은 id를 그대로 두고 유지하되, 시간 경과에 맞게 경과 시간만 고친다. 내용과 수치는 상황이 바뀌었거나 세계 시간이 많이 지난 경우에만 바꾼다. 새 항목은 id를 null로 둔다. 오래된 항목은 빠질 수 있다.\n- 이전 목록: ${JSON.stringify(prev)}\n\n[출력 JSON 형식]\n{"account":"이름 · 등급 · 소속","items":[{"id":"기존 id 또는 null","kind":"official|message|alert","from":"발신자","time":"경과 시간","read":true/false,"preview":"미리보기"}]}`;
             const data = await this.generate(task, r);
             st.account = data.account || st.account;
             st.items = (data.items || []).map(it => {
                 const old = it.id && st.items.find(x => x.id === it.id);
-                return { ...(old || {}), kind: it.kind, from: it.from, time: it.time, read: old ? old.read || !!it.read : !!it.read, preview: it.preview, id: old ? old.id : this.uid('in'), detail: old ? old.detail : null };
+                const item = { ...(old || {}), kind: it.kind, from: it.from, time: it.time, read: old ? old.read || !!it.read : !!it.read, preview: it.preview, id: old ? old.id : this.uid('in'), detail: old ? old.detail : null };
+                this.syncPreview(item);
+                return item;
             });
             this.openId = null;
         });
@@ -173,9 +204,9 @@ window.Net = {
         this.run(async () => {
             let task;
             if(item.kind === 'message') {
-                task = `${this.INBOX_RULES}\n\n[작업]\n아래 1:1 메시지 대화의 내용을 쓴다. 마지막 메시지는 미리보기와 이어지게 한다. 날짜가 바뀌는 곳은 date를 다르게 쓴다.\n- 롤플 시작 이전의 지난 대화에는 사용자 캐릭터가 보낸 메시지가 있어도 된다(말투는 그 캐릭터 설정을 따른다). 최근 진행 이후의 메시지는 사용자 캐릭터가 실제로 보낸 것만 쓴다.\n항목: ${JSON.stringify({ from: item.from, time: item.time, preview: item.preview })}\n사용자 캐릭터 이름: ${this.myChar(r).keyword}\n\n[출력 JSON 형식]\n{"messages":[{"date":"날짜 표기","from":"보낸 사람 이름","text":"내용","time":"시각"}]}`;
+                task = `${this.inboxRules(r, false)}\n\n[작업]\n아래 1:1 메시지 대화의 내용을 쓴다. 마지막 메시지는 미리보기의 문장을 끝까지 완성한 것이다. date는 "어제", "4월 2일"처럼, time은 "오후 4:12"처럼 시각으로 쓴다. 날짜가 바뀌는 곳은 date를 다르게 쓴다.\n- 롤플 시작 이전의 지난 대화에는 사용자 캐릭터가 보낸 메시지가 있어도 된다(말투는 그 캐릭터 설정을 따른다). 최근 진행 이후의 메시지는 사용자 캐릭터가 실제로 보낸 것만 쓴다.\n항목: ${JSON.stringify({ from: item.from, time: item.time, preview: item.preview })}\n사용자 캐릭터 이름: ${this.myChar(r).keyword}\n\n[출력 JSON 형식]\n{"messages":[{"date":"날짜 표기","from":"보낸 사람 이름","text":"내용","time":"시각"}]}`;
             } else {
-                task = `${this.INBOX_RULES}\n\n[작업]\n아래 ${item.kind === 'official' ? '공문' : '알림'}의 전문을 쓴다. 본문은 문단 사이에 빈 줄을 둔다. 커뮤니티 말투 규칙은 적용하지 않는다.\n항목: ${JSON.stringify({ from: item.from, time: item.time, preview: item.preview })}\n\n[출력 JSON 형식]\n{"title":"제목","body":"본문"}`;
+                task = `${this.inboxRules(r, false)}\n\n[작업]\n아래 ${item.kind === 'official' ? '공문' : '알림'}의 전문을 쓴다. 본문은 문단 사이에 빈 줄을 둔다. 커뮤니티 말투 규칙은 적용하지 않는다.\n항목: ${JSON.stringify({ from: item.from, time: item.time, preview: item.preview })}\n\n[출력 JSON 형식]\n{"title":"제목","body":"본문"}`;
             }
             const data = await this.generate(task, r);
             item.detail = item.kind === 'message' ? { messages: data.messages || [] } : { title: data.title || item.preview, body: data.body || '' };
@@ -195,17 +226,28 @@ window.Net = {
         } else item = st.items.find(i => i.id === id);
         if(!item) return;
         if(!item.detail) item.detail = { messages: [] };
-        const last = item.detail.messages[item.detail.messages.length - 1];
-        item.detail.messages.push({ date: last ? last.date : '', from: myName, text, time: '방금' });
-        item.preview = text.substring(0, 25); item.time = '방금'; item.read = true; item.openedAt = Date.now();
+        item.detail.messages.push({ date: '오늘', from: myName, text, time: '방금' });
+        this.syncPreview(item); item.time = '방금'; item.read = true; item.openedAt = Date.now();
         this.openId = item.id; if(input) input.value = '';
         this.run(async () => {
-            const task = `${this.INBOX_RULES}\n\n[작업]\n${myName}이(가) ${item.from}에게 방금 메시지를 보냈다. ${item.from}의 답장을 쓴다.\n- ${item.from}은(는) 자기 성격, 관계, 상황대로 답한다. 답장할 이유가 없으면 답장하지 않는다(빈 배열).\n- "알았다" 정도로 짧게 끝나도 된다. 질문을 여러 개 쏟아붓지 않는다. 메시지는 0~2개.\n대화:\n${item.detail.messages.slice(-12).map(m => `${m.from}: ${m.text}`).join('\n')}\n\n[출력 JSON 형식]\n{"messages":[{"text":"내용","time":"시각"}]}`;
+            const task = `${this.inboxRules(r, false)}\n\n[작업]\n${myName}이(가) ${item.from}에게 방금 메시지를 보냈다. 대화의 마지막 줄이 그 메시지다. ${item.from}의 답장을 쓴다.\n- ${item.from}은(는) 자기 성격, 관계, 상황대로 답한다. 답장할 이유가 없으면 답장하지 않는다(빈 배열).\n- "알았다" 정도로 짧게 끝나도 된다. 질문을 여러 개 쏟아붓지 않는다. 메시지는 0~2개.\n- 위 대화에 이미 있는 문장을 다시 쓰지 않는다.\n대화:\n${item.detail.messages.slice(-12).map(m => `${m.from}: ${m.text}`).join('\n')}\n\n[출력 JSON 형식]\n{"messages":[{"text":"내용"}]}`;
             const data = await this.generate(task, r);
-            const replies = (data.messages || []).filter(m => m.text);
-            replies.forEach(m => item.detail.messages.push({ date: last ? last.date : '', from: item.from, text: m.text, time: m.time || '방금' }));
-            if(replies.length) item.preview = replies[replies.length - 1].text.substring(0, 25);
+            const said = new Set(item.detail.messages.map(m => m.text.trim()));
+            const replies = (data.messages || []).filter(m => m.text && !said.has(m.text.trim()));
+            replies.forEach(m => item.detail.messages.push({ date: '오늘', from: item.from, text: m.text, time: '방금' }));
+            this.syncPreview(item);
         });
+    },
+
+    // 대화가 있는 메시지 항목은 목록 미리보기를 실제 마지막 메시지로 맞춘다
+    syncPreview: function(item) {
+        const msgs = item.detail && item.detail.messages; if(item.kind !== 'message' || !msgs || !msgs.length) return;
+        const t = msgs[msgs.length - 1].text; item.preview = t.length > 25 ? t.substring(0, 25) + '...' : t;
+    },
+    deleteMsg: function(itemId, idx) {
+        const st = this.state(Store.getActiveRoom()).inbox; const item = st.items.find(i => i.id === itemId);
+        if(!item || !item.detail || !confirm("이 메시지를 지우시겠습니까?")) return;
+        item.detail.messages.splice(idx, 1); this.syncPreview(item); Store.forceSave(); this.render();
     },
 
     // 채팅 AI에게 매 턴 넘기는 수신함 내용 (목록 + 열어본 전문)
@@ -290,7 +332,7 @@ window.Net = {
                 if(open && i.detail) {
                     if(i.kind === 'message') {
                         let lastDate = null;
-                        body = `<div class="net-thread">${i.detail.messages.map(m => { const sep = m.date && m.date !== lastDate ? `<div class="net-date">── ${this.esc(m.date)} ──</div>` : ''; if(m.date) lastDate = m.date; return `${sep}<div class="net-msg"><b>${this.esc(m.from)}:</b> ${this.esc(m.text)} <code>${this.esc(m.time || '')}</code></div>`; }).join('')}</div>${this.replyBox(i.id)}`;
+                        body = `<div class="net-thread">${i.detail.messages.map((m, idx) => { const sep = m.date && m.date !== lastDate ? `<div class="net-date">── ${this.esc(m.date)} ──</div>` : ''; if(m.date) lastDate = m.date; return `${sep}<div class="net-msg"><span><b>${this.esc(m.from)}:</b> ${this.esc(m.text)} <code>${this.esc(m.time || '')}</code></span><button class="mini-btn" title="이 메시지 지우기" onclick="Net.deleteMsg('${i.id}', ${idx})">🗑️</button></div>`; }).join('')}</div>${this.replyBox(i.id)}`;
                     } else {
                         body = `<div class="net-body"><div class="net-card-title">${this.esc(i.detail.title)}</div><div class="net-meta"><code>${this.esc(i.from)} · ${this.esc(i.time)}</code></div>${this.para(i.detail.body)}</div>`;
                     }
