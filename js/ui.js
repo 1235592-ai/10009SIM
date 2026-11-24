@@ -150,6 +150,7 @@ window.UI = {
             modSel.value = info.models.some(([id]) => id === Store.state.modelName) ? Store.state.modelName : '';
         }
         const limEl = document.getElementById('set-history-limit'); if(limEl) limEl.value = Store.state.historyLimit || 25;
+        const lenEl = document.getElementById('set-reply-length'); if(lenEl) lenEl.value = Store.state.replyLength || 1500;
         const hintEl = document.getElementById('provider-hint'); if(hintEl) hintEl.innerText = `* ${info.hint}\n* API 키는 이 기기 브라우저에만 저장되며, 전체 백업 파일에는 포함됩니다.`;
     },
     

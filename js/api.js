@@ -1,7 +1,7 @@
 window.API = {
     PROVIDERS: {
-        gemini: { label: 'Google Gemini', keyHint: 'Gemini API Key', defaultModel: 'gemini-3.5-flash-lite',
-            models: [ ['gemini-3.5-flash-lite', '가볍고 빠름'], ['gemini-3.8-flash', '표준'], ['gemini-3.1-pro', '고성능'] ],
+        gemini: { label: 'Google Gemini', keyHint: 'Gemini API Key', defaultModel: 'gemini-3.8-flash',
+            models: [ ['gemini-3.6-flash', 'Gemini 3.6 Flash'], ['gemini-3.8-flash', 'Gemini 3.8 Flash'], ['gemini-4-hydrogen', 'Gemini 4 Hydrogen'] ],
             hint: 'Google AI Studio에서 발급한 키를 입력하세요.' },
         openai: { label: 'OpenAI (GPT)', keyHint: 'OpenAI API Key (sk-...)', defaultModel: 'gpt-5-mini',
             models: [ ['gpt-5', '고성능'], ['gpt-5-mini', '가볍고 빠름'], ['gpt-4.1', '이전 세대'], ['gpt-4o', '이전 세대'] ],
@@ -32,7 +32,6 @@ window.API = {
 
 [서술]
 - 3인칭 소설체로 쓴다. 장면 묘사를 기본으로 하고, NPC 대사와 상황 변화는 장면에 필요할 때 넣는다.
-- 분량은 1500자 이상, 최소 5문단이다. 전투나 큰 사건은 더 길게 쓸 수 있다. 진행이 길어지거나 장면이 단순해도 분량을 줄이지 않는다.
 - 상투적 표현 금지: "마침내", "그 순간", "알 수 없는 기류", "무거운 침묵이 내려앉았다", "~할 수밖에 없었다", "~것이었다", "~듯했다".
 - 직전 턴과 같은 묘사, 같은 문장 구조를 반복하지 않는다.
 
@@ -401,7 +400,14 @@ window.API = {
         const ruleLines = [];
         this.SAFETY_ITEMS.forEach(it => { const v = Store.state.safety[it.key] || {}; if(v.user) ruleLines.push(it.user); if(v.npc) ruleLines.push(it.npc); });
 
+        // 분량은 설정 탭의 글자 수로 매 턴 붙인다 (문단 수는 1000자당 3문단 정도로 맞춤)
+        const len = Store.state.replyLength || 1500;
+        const paras = Math.max(2, Math.round(len / 1000 * 3));
         p += `\n\n${this.getRules().split('{{user}}').join(myChar.keyword)}
+
+[분량]
+- 한 응답은 ${len}자 내외, ${paras}문단 안팎으로 쓴다. 전투나 큰 사건은 더 길게 쓸 수 있다.
+- 진행이 길어지거나 장면이 단순해도 분량을 줄이지 않는다.
 
 [통제 규칙 (안전 검열)]
 ${ruleLines.length > 0 ? "- " + ruleLines.join('\n- ') : "- 검열 없음."}`;
