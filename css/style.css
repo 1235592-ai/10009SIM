@@ -44,46 +44,46 @@
     --radius: 10px;
 }
 
-/* 화이트 모드 (아이보리) */
+/* 화이트 모드 (아이보리): 강조색은 먹색 하나만 쓰고, 나머지는 옅은 바탕과 선으로 차분하게 */
 :root[data-theme="light"] {
     color-scheme: light;
-    --bg-color: #f6f1e7;
-    --panel-bg: #fbf7ef;
+    --bg-color: #f5f0e6;
+    --panel-bg: #faf6ee;
     --surface: #fffdf8;
-    --surface-2: #f1eadc;
-    --surface-3: #e6dece;
+    --surface-2: #f2ecdf;
+    --surface-3: #e9e1d1;
     --card-1: #fffdf8;
-    --card-2: #f5efe3;
-    --card-3: #fbf7ef;
+    --card-2: #f6f1e6;
+    --card-3: #fbf8f1;
     --field-bg: #fffdf8;
     --placeholder: #a59d8e;
-    --border-color: #ddd3c0;
-    --border-strong: #bfb39c;
-    --accent-color: #0b78b8;
-    --accent-hover: #075f93;
-    --accent-ink: #ffffff;
+    --border-color: #e2d9c8;
+    --border-strong: #c9bea8;
+    --accent-color: #2f2a24;
+    --accent-hover: #1c1814;
+    --accent-ink: #fffdf8;
     --text-strong: #1f1b16;
     --text-main: #2d2822;
     --text-sub: #554d42;
-    --text-muted: #857c6d;
-    --danger: #dc2626;
-    --danger-bg: #b91c1c;
-    --danger-soft-text: #b91c1c;
-    --danger-soft-border: #f3c1c1;
-    --danger-soft-bg: #fdf0ee;
-    --success: #059669;
-    --success-bg: #047857;
-    --warning: #b45309;
-    --c-sky: #0369a1; --c-amber: #b45309; --c-red: #c81e1e; --c-violet: #6d28d9; --c-blue: #1d4ed8; --c-green: #047857; --c-lime: #4d7c0f;
-    --overlay: rgba(45, 38, 26, 0.45);
-    --shadow: rgba(70, 58, 36, 0.16);
-    --bg-dim: rgba(246, 241, 231, 0.6);
-    --game-dim: rgba(246, 241, 231, 0.5);
-    --header-bg: rgba(251, 247, 239, 0.96);
-    --subheader-bg: rgba(241, 234, 220, 0.92);
-    --ai-bubble: rgba(255, 253, 248, 0.95);
+    --text-muted: #8a8172;
+    --danger: #a3352b;
+    --danger-bg: #8c2a22;
+    --danger-soft-text: #a3352b;
+    --danger-soft-border: #e2d9c8;
+    --danger-soft-bg: transparent;
+    --success: #2f2a24;
+    --success-bg: #2f2a24;
+    --warning: #7a5a1e;
+    --c-sky: #3a342c; --c-amber: #3a342c; --c-red: #a3352b; --c-violet: #3a342c; --c-blue: #3a342c; --c-green: #3a342c; --c-lime: #3a342c;
+    --overlay: rgba(45, 38, 26, 0.4);
+    --shadow: rgba(70, 58, 36, 0.10);
+    --bg-dim: rgba(245, 240, 230, 0.6);
+    --game-dim: rgba(245, 240, 230, 0.5);
+    --header-bg: rgba(250, 246, 238, 0.96);
+    --subheader-bg: rgba(242, 236, 223, 0.92);
+    --ai-bubble: rgba(255, 253, 248, 0.96);
     --ctrl-bg: rgba(255, 253, 248, 0.9);
-    --code-bg: rgba(60, 48, 28, 0.08);
+    --code-bg: rgba(60, 48, 28, 0.07);
 }
 
 * {
@@ -632,3 +632,33 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
     .card-btns { gap: 6px; }
     .btn-icon { width: 42px; }
 }
+
+/* =========================================
+   13. 화이트 모드 전용 다듬기
+========================================= */
+/* 카드는 색 띠와 테두리 대신 옅은 그림자만 */
+:root[data-theme="light"] .lobby-card { border: none; border-left: 3px solid transparent; box-shadow: 0 1px 4px var(--shadow); }
+:root[data-theme="light"] .lobby-card.recent { border-left-color: var(--accent-color); }
+:root[data-theme="light"] .net-card, :root[data-theme="light"] .acc-sec { box-shadow: 0 1px 3px var(--shadow); }
+/* 태그, 칩, 배지는 옅은 바탕에 진한 글씨 */
+:root[data-theme="light"] .lobby-card-tag { background: var(--surface-2) !important; color: var(--text-sub); border: 1px solid var(--border-color); }
+:root[data-theme="light"] .lobby-card-tag button { color: var(--text-muted); }
+:root[data-theme="light"] .k-chip, :root[data-theme="light"] .role-badge { background: var(--surface-3); color: var(--text-sub); }
+:root[data-theme="light"] .k-chip button { color: var(--text-muted); }
+/* 색 있는 버튼: 저장만 먹색으로 채우고, 나머지는 테두리만 */
+:root[data-theme="light"] .btn-solid { background: transparent !important; color: var(--text-strong) !important; border: 1px solid var(--border-strong); box-shadow: none !important; }
+:root[data-theme="light"] .btn-solid[style*="#16a34a"] { background: var(--accent-color) !important; color: var(--accent-ink) !important; border-color: var(--accent-color); }
+:root[data-theme="light"] .btn-world { background: transparent; color: var(--text-strong); border: 1px solid var(--border-strong); }
+:root[data-theme="light"] .btn-world:hover { background: var(--surface-2); }
+:root[data-theme="light"] .lobby-content > .btn-world { background: var(--accent-color); color: var(--accent-ink); border-color: var(--accent-color); }
+:root[data-theme="light"] .btn-icon { background: transparent; }
+:root[data-theme="light"] .btn-icon.danger:hover { background: var(--danger-soft-text); color: #fff; }
+:root[data-theme="light"] #action-btn { background: var(--accent-color) !important; color: var(--accent-ink); }
+:root[data-theme="light"] #action-btn:disabled { background: var(--surface-3) !important; color: var(--text-muted); }
+/* 내 메시지와 알림도 먹색 계열로 */
+:root[data-theme="light"] .message.user .msg-text { background: #37312a; }
+:root[data-theme="light"] .u-act { color: #ecd9a8; }
+:root[data-theme="light"] .u-ooc { color: #b5ab9a; }
+:root[data-theme="light"] .sys-noti { background: rgba(47, 42, 36, 0.95); }
+:root[data-theme="light"] .edit-area { box-shadow: 0 0 0 3px rgba(47, 42, 36, 0.08); }
+:root[data-theme="light"] .net-attach { background: var(--surface-2); color: var(--text-sub); }

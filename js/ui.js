@@ -50,7 +50,7 @@ window.UI = {
         const theme = Store.state.theme === 'light' ? 'light' : 'dark';
         document.documentElement.dataset.theme = theme;
         try { localStorage.setItem('10009sim-theme', theme); } catch(e) {}
-        const meta = document.querySelector('meta[name="theme-color"]'); if(meta) meta.content = theme === 'light' ? '#f6f1e7' : '#0b0b0f';
+        const meta = document.querySelector('meta[name="theme-color"]'); if(meta) meta.content = theme === 'light' ? '#f5f0e6' : '#0b0b0f';
         const sel = document.getElementById('set-theme'); if(sel) sel.value = theme;
     },
 
