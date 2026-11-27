@@ -352,6 +352,14 @@ header {
 .message.user .msg-text { background: #1e3a8a; color: #fff; border-top-right-radius: 3px; }
 .message.ai .msg-text { background: var(--ai-bubble); color: var(--text-main); border: 1px solid var(--border-color); border-top-left-radius: 3px; }
 
+/* AI 응답 안의 제목과 구분선 */
+.md-h { font-weight: 700; color: var(--text-strong); line-height: 1.4; }
+.md-h1 { font-size: 1.2em; margin: 14px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-strong); }
+.md-h2 { font-size: 1.08em; margin: 12px 0 6px; padding-left: 9px; border-left: 3px solid var(--accent-color); }
+.md-h3 { font-size: 0.95em; margin: 10px 0 4px; color: var(--text-sub); letter-spacing: 0.02em; }
+.msg-text > .md-h:first-child { margin-top: 0; }
+.md-hr { border: none; border-top: 1px solid var(--border-strong); margin: 14px 0; opacity: 0.8; }
+
 /* AI 응답 안의 표 */
 .md-table-wrap { overflow-x: auto; margin: 8px 0; }
 .md-table { border-collapse: collapse; width: 100%; font-size: 0.92em; line-height: 1.5; }
@@ -477,7 +485,8 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
     background: var(--field-bg); color: var(--text-main);
     border: 1px solid var(--border-color); border-radius: 22px;
     padding: 12px 16px; font-size: 1rem; line-height: 1.45;
-    resize: none; height: 46px; max-height: 150px;
+    resize: none; height: 46px; max-height: 35dvh;
+    overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;
 }
 #msg-input:focus { outline: none; border-color: var(--accent-color); }
 #action-btn {

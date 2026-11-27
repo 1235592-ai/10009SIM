@@ -70,7 +70,8 @@ window.UI = {
     autoResize: function(el) { 
         if (!el) return; 
         el.style.height = '1px'; 
-        const maxH = el.classList.contains('edit-area') ? Math.max(300, Math.round(window.innerHeight * 0.65)) : 300; 
+        // 입력칸은 화면 높이의 35%까지 늘어나고, 그보다 길어지면 칸 안에서 손가락으로 밀어 볼 수 있다
+        const maxH = el.classList.contains('edit-area') ? Math.max(300, Math.round(window.innerHeight * 0.65)) : el.id === 'msg-input' ? Math.max(120, Math.round(window.innerHeight * 0.35)) : 300; 
         if (el.scrollHeight >= maxH) { el.style.height = maxH + 'px'; el.style.overflowY = 'auto'; } 
         else { el.style.height = el.scrollHeight + 'px'; el.style.overflowY = 'hidden'; }
     },
@@ -623,7 +624,7 @@ window.UI = {
                 return `<span class="u-act">${html}</span>`;
             }).join('');
         }
-        // AI 응답: 마크다운 표(| 로 나눈 줄 + |---| 구분 줄)는 실제 표로 그린다
+        // AI 응답: 마크다운 표(| 로 나눈 줄 + |---| 구분 줄), # 제목, --- 구분선에 모양을 입힌다
         const cells = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => md(this.esc(c.trim())));
         const isSep = (line) => line.includes('-') && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(line);
         const lines = t.split('\n'); const out = [];
@@ -633,9 +634,14 @@ window.UI = {
                 while(i < lines.length && lines[i].includes('|') && lines[i].trim()) { rows.push(cells(lines[i])); i++; }
                 i--;
                 out.push({ html: `<div class="md-table-wrap"><table class="md-table"><thead><tr>${head.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${head.map((_, k) => `<td>${r[k] || ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`, block: true });
+            } else if(/^\s*([-*_])\1{2,}\s*$/.test(lines[i])) {
+                out.push({ html: '<hr class="md-hr">', block: true });                       // --- 구분선
+            } else if(/^#{1,3}\s+\S/.test(lines[i])) {
+                const level = lines[i].match(/^#+/)[0].length;                               // # 제목
+                out.push({ html: `<div class="md-h md-h${level}">${md(this.esc(lines[i].replace(/^#+\s+/, '')))}</div>`, block: true });
             } else out.push({ html: md(this.esc(lines[i])), block: false });
         }
-        // 줄바꿈은 <br>로 잇되, 표 앞뒤에는 넣지 않는다 (표에 붙은 빈 줄은 표의 여백과 겹치므로 뺀다)
+        // 줄바꿈은 <br>로 잇되, 표 앞뒤에는 넣지 않는다 (표·제목·구분선에 붙은 빈 줄은 그쪽 여백과 겹치므로 뺀다)
         const kept = out.filter((o, i) => o.block || o.html !== '' || !((out[i - 1] && out[i - 1].block) || (out[i + 1] && out[i + 1].block)));
         return kept.map((o, i) => o.html + (i < kept.length - 1 && !o.block && !kept[i + 1].block ? '<br>' : '')).join('');
     },
