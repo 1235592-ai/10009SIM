@@ -302,7 +302,9 @@ window.App = {
         
         const msgObj = r.history[tIdx]; let msgDiv = document.querySelector(`.message.ai[data-idx="${tIdx}"]`); if(!msgDiv) msgDiv = UI.appendMessageDOM(msgObj, tIdx);
         const textEl = msgDiv.querySelector('.msg-text'); const controlsEl = msgDiv.querySelector('.msg-controls'); if(controlsEl) controlsEl.remove();
-        textEl.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>'; UI.scrollToBottom(true);
+        textEl.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+        // 맨 아래로 내리는 건 내가 메시지를 보냈을 때뿐이다 (재생성, 응답 완료 때는 화면을 움직이지 않는다)
+        if(!isRegen) UI.scrollToBottom(true);
 
         const scan = r.history.slice(-5).map(m => m.variants[m.currentVariant]).join(" ");
         
@@ -367,7 +369,6 @@ window.App = {
             document.getElementById('action-btn').disabled = false; 
             UI.updateActionBtn(); 
             Store.forceSave(); 
-            UI.scrollToBottom(true); 
         }
     },
 
