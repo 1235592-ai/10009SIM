@@ -102,7 +102,7 @@ window.App = {
     runWorldSketch: async function() {
         if(!Store.state.apiKey) return alert("API 키를 설정해주세요.");
         const w = Store.getTargetWorld();
-        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
+        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 + 버튼)");
 
         const hasContent = w.name || w.prompt || w.factions.length > 0 || w.lores.length > 0 || w.locations.length > 0;
         if(hasContent) {
@@ -143,7 +143,7 @@ window.App = {
     runMagicGenerator: async function() {
         if(!Store.state.apiKey) return alert("API 키를 설정해주세요.");
         const w = Store.getTargetWorld();
-        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
+        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 + 버튼)");
         
         const target = UI.lastFocusedWorldInput;
         if(!target) return;

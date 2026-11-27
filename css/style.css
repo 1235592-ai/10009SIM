@@ -119,6 +119,12 @@ h2 .ic, h3 .ic, summary .ic, .net-title .ic { margin-right: 2px; opacity: 0.85; 
 .btn-to-lobby .ic { margin-right: 2px; }
 .sparkle-icon .ic { width: 3rem; height: 3rem; }
 .drag-handle .ic { width: 1.1rem; height: 1.1rem; }
+.icon-pick { margin-bottom: 10px; }
+.icon-pick > summary, .acc-sec .icon-pick > summary { font-size: 0.85rem; font-weight: 400; color: var(--text-muted); cursor: pointer; padding: 4px 0; border-bottom: none; }
+.icon-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 8px; }
+.icon-opt { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: var(--field-bg); color: var(--text-sub); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; padding: 0; }
+.icon-opt .ic { width: 1.2rem; height: 1.2rem; }
+.icon-opt.on { border-color: var(--accent-color); color: var(--accent-color); background: var(--surface-3); }
 .close-btn-new .ic { width: 1.5rem; height: 1.5rem; vertical-align: middle; }
 
 /* =========================================

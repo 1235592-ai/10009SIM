@@ -54,6 +54,15 @@ window.UI = {
         const sel = document.getElementById('set-theme'); if(sel) sel.value = theme;
     },
 
+    // 세력/지역 아이콘을 고르는 접이식 격자. type은 'f'(세력) 또는 'reg'(지역)
+    iconPicker: function(type, item) {
+        const cur = item.icon || ICON_CHOICES[type][0];
+        return `<details class="icon-pick" id="det-ic-${type}-${item.id}">
+            <summary>아이콘 바꾸기</summary>
+            <div class="icon-grid">${ICON_CHOICES[type].map(n => `<button type="button" class="icon-opt ${n === cur ? 'on' : ''}" onclick="Store.setIcon('${type}', '${item.id}', '${n}')">${IC(n)}</button>`).join('')}</div>
+        </details>`;
+    },
+
     setBackground: function(url) { const bg = document.getElementById('app-bg'); if(bg) bg.style.backgroundImage = url ? `url('${url}')` : 'none'; },
 
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
@@ -360,12 +369,13 @@ window.UI = {
             regList.innerHTML = w.regions.map(reg => `
                 <details class="folder-box" id="det-reg-${reg.id}" data-sort-type="reg" data-sort-id="${reg.id}">
                     <summary class="folder-title">
-                        <h4 style="margin:0; color:var(--c-green);">${this.DRAG}${IC('mountain')} ${this.esc(reg.name) || '새 지역'}</h4>
+                        <h4 style="margin:0; color:var(--c-green);">${this.DRAG}${IC(reg.icon || 'land-plot')} ${this.esc(reg.name) || '새 지역'}</h4>
                         <button class="mini-btn" title="지역 삭제" onclick="Store.delWorldItem('reg','${reg.id}', event)">${IC('trash-2')}</button>
                     </summary>
                     <div style="margin-top:10px;">
                         <input type="text" class="input-std" id="reg-n-${reg.id}" value="${this.esc(reg.name)}" placeholder="지역명">
                         <textarea class="area-std auto-resize" id="reg-d-${reg.id}" placeholder="지역 특징" oninput="UI.autoResize(this);">${this.esc(reg.desc)}</textarea>
+                        ${this.iconPicker('reg', reg)}
                         <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
                             ${locMap[reg.id].map(loc=>renderLocItem(loc, w.locations.findIndex(x=>x.id===loc.id))).join('')}
                             <button class="btn-ghost" style="margin:0; padding:6px;" onclick="Store.addLocation('${reg.id}')">+ 이 지역에 장소 추가</button>
@@ -497,7 +507,7 @@ window.UI = {
             return `
             <details class="folder-box fac-group" id="det-fg-${f.id}" data-sort-type="f" data-sort-id="${f.id}">
                 <summary class="folder-title">
-                    <h4 style="margin:0; color:var(--c-blue);">${this.DRAG}${IC('flag')} ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
+                    <h4 style="margin:0; color:var(--c-blue);">${this.DRAG}${IC(f.icon || 'flag')} ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
                     <button class="mini-btn" title="세력 삭제" onclick="Store.delWorldItem('f','${f.id}', event)">${IC('trash-2')}</button>
                 </summary>
                 <div style="margin-top:10px;">
@@ -506,6 +516,7 @@ window.UI = {
                         <div style="margin-top:10px;">
                             <input type="text" class="input-std" id="f-n-${f.id}" value="${this.esc(f.name)}" placeholder="세력명">
                             <textarea class="area-std auto-resize" id="f-d-${f.id}" placeholder="특징" oninput="UI.autoResize(this);">${this.esc(f.desc)}</textarea>
+                            ${this.iconPicker('f', f)}
                             <span class="secret-label">${IC('lock')} 세력 비밀</span>
                             <textarea class="area-std auto-resize" id="f-s-${f.id}" oninput="UI.autoResize(this);">${this.esc(f.secret)}</textarea>
                         </div>

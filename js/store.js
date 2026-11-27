@@ -211,6 +211,12 @@ window.Store = {
         if(document.getElementById('char-panel').classList.contains('open')) this.syncCharDOM();
     },
 
+    setIcon: function(type, id, name) {
+        const w = this.getTargetWorld(); if(!w) return;
+        const item = (type === 'f' ? w.factions : w.regions).find(x => x.id === id); if(!item) return;
+        this.syncOpenPanels(); item.icon = name; this.forceSave(); UI.refreshOpenPanel();
+    },
+
     // 같은 묶음 안에서 끌어 옮긴 순서(ids)를 반영한다. 다른 항목의 자리는 그대로 둔다.
     reorder: function(type, ids) {
         const w = this.getTargetWorld(); if(!w) return;
