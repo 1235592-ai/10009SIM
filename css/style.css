@@ -293,6 +293,7 @@ header {
 }
 .msg-controls button:hover { background: var(--surface-3); color: #fff; }
 .msg-controls span { font-size: 0.8rem; color: var(--text-muted); align-self: center; }
+.msg-controls .usage-tag { font-size: 0.7rem; margin-left: 4px; white-space: nowrap; }
 
 /* 메시지 수정 모드 */
 .message.editing { max-width: 100%; width: 100%; align-self: stretch; }

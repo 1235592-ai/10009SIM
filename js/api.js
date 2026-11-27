@@ -17,7 +17,7 @@ window.API = {
     // 설정 탭에서 사용자가 수정할 수 있는 전체 서술 지침의 기본값. {{user}}는 내 캐릭터 이름으로 치환된다.
     DEFAULT_RULES: `[역할]
 - 너는 이 세계의 서술자이자 진행자다. 사용자 캐릭터({{user}})를 제외한 모든 인물(NPC), 세력, 사건, 크리쳐, 환경을 운영한다.
-- 세계관과 인물 설정은 위에 제공된 세계관 배경, 세계관 전용 지침, 인물·세력·장소 데이터를 따른다. Timeline(상황 요약)이 있으면 그것을 기준으로 이어간다.
+- 세계관과 인물 설정은 함께 제공된 세계관 배경, 세계관 전용 지침, 인물·세력·장소 데이터를 따른다. Timeline(상황 요약)이 있으면 그것을 기준으로 이어간다.
 
 [사용자 캐릭터]
 - 이번 사용자 캐릭터는 {{user}}다. {{user}}는 네가 연기하지 않는다.
@@ -119,21 +119,35 @@ window.API = {
         return out;
     },
 
+    // sysText는 문자열 하나이거나, [거의 안 바뀌는 부분, 가끔 바뀌는 부분] 배열이다.
+    // options.tail은 턴마다 바뀌는 참고 자료로, 캐시가 깨지지 않도록 지침이 아닌 마지막 사용자 메시지 뒤에 붙인다.
     buildRequest: function(contents, sysText, options, stream) {
         const provider = this.getProvider();
         const key = Store.state.apiKey;
         const model = Store.state.modelName;
+        const sysParts = (Array.isArray(sysText) ? sysText : [sysText]).filter(t => t && t.trim());
+        const sysJoined = sysParts.join('\n\n');
+        const tail = options.tail && options.tail.trim() ? options.tail : '';
 
         if (provider === 'anthropic') {
-            const body = { model, max_tokens: stream ? 32000 : 16000, messages: this.toAnthropicMessages(contents), stream };
-            if (sysText) body.system = sysText;
+            const ttl = Store.state.claudeCacheTtl || '1h';
+            const mark = (options.cache && ttl !== 'off') ? { cache_control: ttl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' } } : {};
+            // 캐시 지점: 지침 두 덩어리의 끝, 그리고 마지막 사용자 메시지 본문의 끝(참고 자료 앞)
+            const messages = this.toAnthropicMessages(contents).map(m => ({ role: m.role, content: [{ type: 'text', text: m.content }] }));
+            const lastBlocks = messages[messages.length - 1].content;
+            Object.assign(lastBlocks[0], mark);
+            if (tail) lastBlocks.push({ type: 'text', text: tail });
+            const body = { model, max_tokens: stream ? 32000 : 16000, messages, stream };
+            if (sysParts.length) body.system = sysParts.map(t => ({ type: 'text', text: t, ...mark }));
             const headers = { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2026-10-21', 'anthropic-dangerous-direct-browser-access': 'true' };
             // 안전 분류기가 거절(refusal)할 경우 서버가 다른 모델로 자동 재시도하도록 설정 (지원 모델만)
             if (/^claude-(opus-5|opus-5-5|sonnet-5-5|fable-5-1)$/.test(model)) { body.fallbacks = 'default'; headers['anthropic-beta'] = 'server-side-fallback-2026-07-01'; }
+            const usage = (u) => u && u.input_tokens !== undefined ? { input: (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0), cached: u.cache_read_input_tokens || 0 } : null;
             return {
                 url: 'https://api.anthropic.com/v1/messages', headers, body,
                 chunk: (j) => { if (j.type === 'error') throw new Error(j.error?.message || 'Claude 스트림 오류'); return j.type === 'content_block_delta' && j.delta?.type === 'text_delta' ? j.delta.text : ''; },
-                parse: (d) => { if (d.stop_reason === 'refusal') throw new Error('모델이 응답을 거절했습니다 (refusal).'); return (d.content || []).filter(b => b.type === 'text').map(b => b.text).join(''); }
+                parse: (d) => { if (d.stop_reason === 'refusal') throw new Error('모델이 응답을 거절했습니다 (refusal).'); return (d.content || []).filter(b => b.type === 'text').map(b => b.text).join(''); },
+                usage: (j) => usage(j.type === 'message_start' ? j.message?.usage : null)
             };
         }
 
@@ -141,18 +155,22 @@ window.API = {
             const base = provider === 'custom' ? (Store.state.baseUrl || '').trim().replace(/\/+$/, '') : 'https://api.openai.com/v1';
             if (!base) throw new Error('Base URL을 설정 탭에서 입력해주세요.');
             const messages = this.toPlainMessages(contents);
-            if (sysText) messages.unshift({ role: 'system', content: sysText });
+            if (tail && messages.length) messages[messages.length - 1].content += '\n\n' + tail;
+            if (sysJoined) messages.unshift({ role: 'system', content: sysJoined });
             const body = { model, messages, stream, temperature: options.temp || 0.85 };
             if (options.jsonMode && provider === 'openai') body.response_format = { type: 'json_object' };
+            if (stream && provider === 'openai') body.stream_options = { include_usage: true };
             return {
                 url: base + '/chat/completions', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body,
                 chunk: (j) => j.choices?.[0]?.delta?.content || '',
-                parse: (d) => d.choices?.[0]?.message?.content || ''
+                parse: (d) => d.choices?.[0]?.message?.content || '',
+                usage: (j) => j.usage ? { input: j.usage.prompt_tokens || 0, cached: j.usage.prompt_tokens_details?.cached_tokens || 0 } : null
             };
         }
 
+        const gContents = tail && contents.length ? contents.map((c, i) => i === contents.length - 1 ? { role: c.role, parts: [...c.parts, { text: '\n\n' + tail }] } : c) : contents;
         const body = {
-            contents,
+            contents: gContents,
             safetySettings: [
                 { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
                 { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
@@ -162,12 +180,13 @@ window.API = {
             generationConfig: { temperature: options.temp || 0.85 }
         };
         if (options.jsonMode) body.generationConfig.responseMimeType = "application/json";
-        if (sysText) body.system_instruction = { parts: [{ text: sysText }] };
+        if (sysJoined) body.system_instruction = { parts: [{ text: sysJoined }] };
         const method = stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?';
         return {
             url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:${method}key=${key}`, headers: { 'Content-Type': 'application/json' }, body,
             chunk: (j) => j.candidates?.[0]?.content?.parts?.[0]?.text || '',
-            parse: (d) => { if (!d.candidates?.[0]) throw new Error("응답 없음"); return d.candidates[0].content.parts[0].text; }
+            parse: (d) => { if (!d.candidates?.[0]) throw new Error("응답 없음"); return d.candidates[0].content.parts[0].text; },
+            usage: (j) => j.usageMetadata ? { input: j.usageMetadata.promptTokenCount || 0, cached: j.usageMetadata.cachedContentTokenCount || 0 } : null
         };
     },
 
@@ -187,9 +206,11 @@ window.API = {
         return res;
     },
 
-    streamLLM: async function(contents, sysText, onChunk) {
-        const req = this.buildRequest(contents, sysText, {}, true);
+    // 반환값: { input, cached } (입력 토큰 수와 그중 캐시에서 읽은 양). 서비스가 알려주지 않으면 null.
+    streamLLM: async function(contents, sysText, onChunk, options={}) {
+        const req = this.buildRequest(contents, sysText, options, true);
         const res = await this.send(req);
+        let usage = null;
 
         const reader = res.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
         while(true) {
@@ -200,9 +221,11 @@ window.API = {
                 if(!line.startsWith('data:')) continue;
                 const dataStr = line.slice(5).trim(); if(!dataStr || dataStr === '[DONE]') continue;
                 let json; try { json = JSON.parse(dataStr); } catch(e) { continue; }
+                const u = req.usage(json); if(u) usage = u;
                 const chunk = req.chunk(json); if(chunk) onChunk(chunk);
             }
         }
+        return usage;
     },
 
     callLLM: async function(contents, sysText, options={}) {
@@ -295,6 +318,10 @@ window.API = {
         return this.parseAIJsonRaw(text);
     },
 
+    // 캐시가 최대한 맞도록 세 덩어리로 나눠 돌려준다.
+    //  system[0]: 거의 안 바뀌는 것 (서술 지침, 분량, 안전 설정, 세계관 배경, 내 캐릭터)
+    //  system[1]: 가끔 바뀌는 것 (주연, 세력, 대기 인물, 세계 상태, 장소, 상황 요약)
+    //  tail:      턴마다 바뀔 수 있는 것 (최근 언급된 인물·지식, 수신함, 떡밥 회수) → 마지막 사용자 메시지 뒤에 붙는다
     buildPrompt: function(r, scan) {
         const w = r.worldInstance; 
         const loc = w.locations[r.currentLocIdx]; 
@@ -302,86 +329,85 @@ window.API = {
         
         const activeNpcs = r.activeCharIds.map(id => w.characters.find(c=>c.id===id)).filter(c=>c&&c.id!=='sys'); 
         const myChar = w.characters.find(c=>c.id===r.myCharId) || {keyword:'플레이어', desc:''};
-        
-        let gStatus = r.globalStatus && r.globalStatus.trim() ? `\n[🚨 절대 서사 규칙]\n${r.globalStatus.trim()}\n` : '';
-        
-        let activeFactionIds = new Set();
-        if (myChar.factionIds) myChar.factionIds.forEach(fid => activeFactionIds.add(fid));
-        
+        const facName = (fid) => w.factions.find(f=>f.id===fid)?.name;
+
         let myBlock = `<MyCharacter name="${myChar.keyword}">\n`;
-        if (myChar.factionIds && myChar.factionIds.length > 0) {
-            const fNames = myChar.factionIds.map(fid => w.factions.find(f=>f.id===fid)?.name).filter(n=>n);
-            myBlock += `  <Faction>${fNames.join(', ')}</Faction>\n`;
-        }
+        const myFacs = (myChar.factionIds || []).map(facName).filter(n=>n);
+        if(myFacs.length) myBlock += `  <Faction>${myFacs.join(', ')}</Faction>\n`;
         if(myChar.desc?.trim()) myBlock += `  <Description>${myChar.desc.trim()}</Description>\n`;
         if(myChar.secret?.trim()) myBlock += `  <Secret>${myChar.secret.trim()}</Secret>\n`;
         myBlock += `</MyCharacter>`;
 
-        let npcBlocks = "";
-        let fullDataNpcs = [...activeNpcs];
-        let surroundingNpcsList = [];
+        const npcBlock = (c) => {
+            const fNames = (c.factionIds || []).map(facName).filter(n=>n);
+            let b = `<NPC name="${c.keyword}">\n`;
+            if(fNames.length > 0) b += `  <Faction>${fNames.join(', ')}</Faction>\n`;
+            if(c.desc?.trim()) b += `  <Description>${c.desc.trim()}</Description>\n`;
+            if(c.secret?.trim()) b += `  <Secret>${c.secret.trim()}</Secret>\n`;
+            return b + `</NPC>`;
+        };
+        const facBlock = (fid) => {
+            const fac = w.factions.find(f => f.id === fid); if(!fac) return "";
+            let fb = `<FactionData name="${fac.name}">\n`;
+            if(fac.desc?.trim()) fb += `  <Description>${fac.desc.trim()}</Description>\n`;
+            if(fac.secret?.trim()) fb += `  <Secret>${fac.secret.trim()}</Secret>\n`;
+            return fb + `</FactionData>`;
+        };
 
-        w.characters.forEach(c => {
-            if(c.id === r.myCharId || c.id === 'sys' || c.isHidden) return;
-            if(r.activeCharIds.includes(c.id)) return;
+        // 주연이 아닌 인물: 최근 언급된 인물(transient)은 이번 턴 참고 자료로 전체 설명을, 나머지는 짧은 소개만 보낸다
+        const others = w.characters.filter(c => c.id !== r.myCharId && c.id !== 'sys' && !c.isHidden && !r.activeCharIds.includes(c.id));
+        const transientNpcs = others.filter(c => r.transientCharIds && r.transientCharIds[c.id] !== undefined);
+        const potential = others.filter(c => !c.triggerLocId || (loc && c.triggerLocId === loc.id)).map(c => {
+            const shortDesc = c.desc ? c.desc.substring(0, 50).replace(/\n/g, ' ') + (c.desc.length > 50 ? '...' : '') : '대기 중인 조연.';
+            return `<PotentialNPC name="${c.keyword}">${shortDesc}</PotentialNPC>`;
+        }).join('\n');
 
-            if(r.transientCharIds && r.transientCharIds[c.id] !== undefined) {
-                fullDataNpcs.push(c);
-            } else {
-                if(!c.triggerLocId || (loc && c.triggerLocId === loc.id)) {
-                    surroundingNpcsList.push(c);
-                }
-            }
-        });
+        const baseFactionIds = new Set();
+        [myChar, ...activeNpcs].forEach(c => (c.factionIds || []).forEach(fid => baseFactionIds.add(fid)));
+        const tailFactionIds = new Set();
+        transientNpcs.forEach(c => (c.factionIds || []).forEach(fid => { if(!baseFactionIds.has(fid)) tailFactionIds.add(fid); }));
 
-        if(fullDataNpcs.length > 0) { 
-            npcBlocks = fullDataNpcs.map(c => { 
-                if (c.factionIds) c.factionIds.forEach(fid => activeFactionIds.add(fid));
-                const fNames = c.factionIds ? c.factionIds.map(fid => w.factions.find(f=>f.id===fid)?.name).filter(n=>n) : [];
-                let b = `<NPC name="${c.keyword}">\n`;
-                if(fNames.length > 0) b += `  <Faction>${fNames.join(', ')}</Faction>\n`;
-                if(c.desc?.trim()) b += `  <Description>${c.desc.trim()}</Description>\n`;
-                if(c.secret?.trim()) b += `  <Secret>${c.secret.trim()}</Secret>\n`;
-                b += `</NPC>`;
-                return b;
-            }).join('\n'); 
-        }
+        // ---------- system[0]
+        const ruleLines = [];
+        this.SAFETY_ITEMS.forEach(it => { const v = Store.state.safety[it.key] || {}; if(v.user) ruleLines.push(it.user); if(v.npc) ruleLines.push(it.npc); });
+        // 분량은 설정 탭의 글자 수로 붙인다 (문단 수는 1000자당 3문단 정도로 맞춤)
+        const len = Store.state.replyLength || 1500;
+        const paras = Math.max(2, Math.round(len / 1000 * 3));
+        const worldRules = w.rules && w.rules.trim() ? `\n\n[세계관 전용 지침]\n${w.rules.trim()}` : '';
+        const stable = `${this.getRules().split('{{user}}').join(myChar.keyword)}
 
-        let facBlocks = "";
-        if(activeFactionIds.size > 0) {
-            facBlocks = Array.from(activeFactionIds).map(fid => {
-                const fac = w.factions.find(f => f.id === fid);
-                if(!fac) return "";
-                let fb = `<FactionData name="${fac.name}">\n`;
-                if(fac.desc?.trim()) fb += `  <Description>${fac.desc.trim()}</Description>\n`;
-                if(fac.secret?.trim()) fb += `  <Secret>${fac.secret.trim()}</Secret>\n`;
-                fb += `</FactionData>`;
-                return fb;
-            }).filter(x=>x).join('\n');
-        }
+[분량]
+- 한 응답은 ${len}자 내외, ${paras}문단 안팎으로 쓴다. 전투나 큰 사건은 더 길게 쓸 수 있다.
+- 진행이 길어지거나 장면이 단순해도 분량을 줄이지 않는다.
 
-        let surroundingNpcs = surroundingNpcsList
-            .map(c => {
-                let shortDesc = c.desc ? c.desc.substring(0, 50).replace(/\n/g, ' ') + (c.desc.length > 50 ? '...' : '') : '대기 중인 조연.';
-                return `<PotentialNPC name="${c.keyword}">${shortDesc}</PotentialNPC>`;
-            })
-            .join('\n');
+[통제 규칙 (안전 검열)]
+${ruleLines.length > 0 ? "- " + ruleLines.join('\n- ') : "- 검열 없음."}
 
-        const worldRules = w.rules && w.rules.trim() ? `\n[세계관 전용 지침]\n${w.rules.trim()}\n` : '';
-        let p = `[세계관 배경]\n${w.prompt}\n${worldRules}${gStatus}\n
-[등장 요소 데이터]\n${myBlock}\n${npcBlocks}\n${facBlocks}\n
-[주변 대기 인물군] (사용자가 부르거나 그 장소에 있을 개연성이 분명할 때만 등장)\n${surroundingNpcs}\n`;
-        
-        if(loc) p += `[현재 장소: ${reg?reg.name+' - ':''}${loc.name}]${loc.desc?.trim() ? ' (특징: '+loc.desc.trim()+')' : ''}\n`;
-        
+[이번 턴 참고 블록]
+- 마지막 사용자 메시지 뒤에 <이번 턴 참고> 블록이 붙을 수 있다. 앱이 붙인 참고 자료이며 사용자의 입력이 아니다. 그 안의 인물, 세력, 지식, 수신함 정보는 아래 데이터와 같은 무게로 따른다.
+
+[세계관 배경]
+${w.prompt || ''}${worldRules}
+
+[사용자 캐릭터 데이터]
+${myBlock}`;
+
+        // ---------- system[1]
+        let semi = `[등장 요소 데이터]\n${activeNpcs.map(npcBlock).join('\n')}\n${Array.from(baseFactionIds).map(facBlock).filter(x=>x).join('\n')}\n
+[주변 대기 인물군] (사용자가 부르거나 그 장소에 있을 개연성이 분명할 때만 등장)\n${potential}\n`;
+        if(r.globalStatus && r.globalStatus.trim()) semi += `\n[🚨 절대 서사 규칙]\n${r.globalStatus.trim()}\n`;
+        if(loc) semi += `\n[현재 장소: ${reg?reg.name+' - ':''}${loc.name}]${loc.desc?.trim() ? ' (특징: '+loc.desc.trim()+')' : ''}\n`;
         const mem = (r.memory || "").trim();
-        if(mem) p += `\n<Timeline>\n${mem}\n</Timeline>\n`;
-        p += Net.chatContext(r);
-        
-        let baitRule = "";
+        if(mem) semi += `\n<Timeline>\n${mem}\n</Timeline>\n`;
+
+        // ---------- tail
+        let tail = '';
+        if(transientNpcs.length) tail += `[최근 언급된 인물]\n${transientNpcs.map(npcBlock).join('\n')}\n${Array.from(tailFactionIds).map(facBlock).filter(x=>x).join('\n')}\n`;
+        tail += Net.chatContext(r);
+
         let info = []; 
-        w.factions.forEach(f => { if(f.name && scan.includes(f.name) && !activeFactionIds.has(f.id)) info.push(`- 세력 ${f.name}: ${f.desc}`); }); 
-        
+        w.factions.forEach(f => { if(f.name && scan.includes(f.name) && !baseFactionIds.has(f.id) && !tailFactionIds.has(f.id)) info.push(`- 세력 ${f.name}: ${f.desc}`); }); 
+        let baitRule = "";
         if (r.baitRecoveryNextTurn) {
             w.lores.forEach(l => { info.push(`- [과거사/지식] ${l.keyword}: ${l.desc}`); });
             baitRule = `\n[🎣 떡밥 회수 발동!] 지금까지의 흐름을 보고 위 [과거사/지식] 중 가장 적절한 떡밥 하나를 골라 자연스럽게 현재 사건과 엮어 회수하라. 억지스럽게 여러 개를 동시에 끌어오지 마라.\n`;
@@ -394,26 +420,11 @@ window.API = {
                 }
             }); 
         }
+        if(info.length) tail += `\n[주변 대기 요소]\n${info.join("\n")}\n`;
+        tail += baitRule;
+        if(tail.trim()) tail = `<이번 턴 참고>\n${tail.trim()}\n</이번 턴 참고>`;
 
-        if(info.length) p += `\n[주변 대기 요소]\n${info.join("\n")}\n`;
-        p += baitRule;
-        const ruleLines = [];
-        this.SAFETY_ITEMS.forEach(it => { const v = Store.state.safety[it.key] || {}; if(v.user) ruleLines.push(it.user); if(v.npc) ruleLines.push(it.npc); });
-
-        // 분량은 설정 탭의 글자 수로 매 턴 붙인다 (문단 수는 1000자당 3문단 정도로 맞춤)
-        const len = Store.state.replyLength || 1500;
-        const paras = Math.max(2, Math.round(len / 1000 * 3));
-        p += `\n\n${this.getRules().split('{{user}}').join(myChar.keyword)}
-
-[분량]
-- 한 응답은 ${len}자 내외, ${paras}문단 안팎으로 쓴다. 전투나 큰 사건은 더 길게 쓸 수 있다.
-- 진행이 길어지거나 장면이 단순해도 분량을 줄이지 않는다.
-
-[통제 규칙 (안전 검열)]
-${ruleLines.length > 0 ? "- " + ruleLines.join('\n- ') : "- 검열 없음."}`;
-
-        return p;
+        return { system: [stable, semi], tail };
     },
-
 
 };

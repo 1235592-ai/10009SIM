@@ -1,7 +1,7 @@
 window.Store = {
     VERSION: 100,
     state: {
-        provider: 'gemini', historyLimit: 25, replyLength: 1500, apiKey: '', modelName: 'gemini-3.8-flash', baseUrl: '', providerConfigs: {}, globalRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
+        provider: 'gemini', historyLimit: 25, replyLength: 1500, claudeCacheTtl: '1h', apiKey: '', modelName: 'gemini-3.8-flash', baseUrl: '', providerConfigs: {}, globalRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
         safety: {},
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
@@ -39,6 +39,7 @@ window.Store = {
             this.state.globalRules = master.globalRules || '';
             this.state.historyLimit = master.historyLimit || 25;
             this.state.replyLength = master.replyLength || 1500;
+            this.state.claudeCacheTtl = master.claudeCacheTtl || '1h';
             this.state.lobbyBgUrl = master.lobbyBgUrl || '';
             this.state.safety = this.normalizeSafety(master.safety); 
             this.state.roomTags = master.roomTags || [];
@@ -109,7 +110,7 @@ window.Store = {
 
     masterSettings: function() {
         const s = this.state;
-        return { provider: s.provider, historyLimit: s.historyLimit, replyLength: s.replyLength, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
+        return { provider: s.provider, historyLimit: s.historyLimit, replyLength: s.replyLength, claudeCacheTtl: s.claudeCacheTtl, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
     },
 
     // 현재 입력된 키/모델을 서비스별로 따로 보관해 두어, 서비스를 바꿔도 이전 키가 지워지지 않게 한다.
@@ -124,6 +125,7 @@ window.Store = {
         this.state.lobbyBgUrl = document.getElementById('set-lobby-bg').value.trim();
         const lim = parseInt(document.getElementById('set-history-limit').value, 10);
         this.state.historyLimit = isNaN(lim) ? 25 : Math.max(5, Math.min(200, lim));
+        this.state.claudeCacheTtl = document.getElementById('set-claude-cache').value || '1h';
         const len = parseInt(document.getElementById('set-reply-length').value, 10);
         this.state.replyLength = isNaN(len) ? 1500 : Math.max(200, Math.min(10000, len));
         this.stashProviderConfig();
@@ -290,7 +292,7 @@ window.Store = {
                 
                 this.db = await this.openDB();
                 const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
-                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.8-flash', worldTagsMigrated:!!st.worldTagsMigrated, baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', historyLimit:st.historyLimit||25, replyLength:st.replyLength||1500, safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
+                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.8-flash', worldTagsMigrated:!!st.worldTagsMigrated, baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', historyLimit:st.historyLimit||25, replyLength:st.replyLength||1500, claudeCacheTtl:st.claudeCacheTtl||'1h', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
                 if(st.worlds) { st.worlds.forEach(w => { if(!w.keywords) w.keywords=[]; tx.objectStore('worlds').put(w); }); }
                 if(st.rooms) st.rooms.forEach(rm => tx.objectStore('rooms').put(rm));
                 tx.oncomplete = () => { alert("복원 완료! 앱을 재시작합니다."); window.location.reload(); };
