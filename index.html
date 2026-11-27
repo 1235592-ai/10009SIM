@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b0b0f">
     <!-- 저장된 테마를 화면이 그려지기 전에 적용한다 (잠깐 다른 색으로 깜빡이는 것 방지) -->
     <script>try { if(localStorage.getItem('10009sim-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch(e) {}</script>
-    <link rel="stylesheet" href="css/style.css?v=4.6">
+    <link rel="stylesheet" href="css/style.css?v=4.7">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -164,14 +164,14 @@
         
         <details class="acc-sec" open id="det-basic-settings">
             <summary style="color:var(--c-sky);"><i data-ic="globe"></i> 기본 설정</summary>
-            <div style="margin-top:10px;">
+            <div class="acc-body">
                 <div class="field-label">키워드 <span>(AI 생성의 재료, 최대 10개)</span></div>
                 <div id="w-keyword-list" class="keyword-area"></div>
                 <div style="display:flex; gap:8px; margin-bottom:10px;">
                     <input type="text" id="w-k-input" class="input-std" style="margin:0;" placeholder="예: 학교, 괴담, 회귀" oninput="App.handleKeywordInput(event)" onkeydown="if(event.key==='Enter' && !event.isComposing) { event.preventDefault(); App.commitKeywordInput(); }" onblur="App.commitKeywordInput()">
-                    <button type="button" class="btn-play" style="margin:0; width:auto; padding:0 16px;" onmousedown="event.preventDefault()" onclick="App.commitKeywordInput()">추가</button>
+                    <button type="button" class="btn-play" style="margin:0; width:auto; padding:0 14px;" title="키워드 추가" onmousedown="event.preventDefault()" onclick="App.commitKeywordInput()"><i data-ic="plus"></i></button>
                 </div>
-                <p class="hint">* 스페이스, 쉼표, 엔터, [추가] 중 아무거나로 등록됩니다. 여러 개를 한 번에 붙여넣어도 됩니다.</p>
+                <p class="hint">* 스페이스, 쉼표, 엔터, + 버튼 중 아무거나로 등록됩니다. 여러 개를 한 번에 붙여넣어도 됩니다.</p>
                 
                 <hr style="border-color:var(--border-color); margin:15px 0;">
                 <input type="text" class="input-std" id="w-n" placeholder="세계관 이름">
@@ -280,11 +280,11 @@
     <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3><i data-ic="tag"></i> 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')"><i data-ic="x"></i></button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
     <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
-    <script src="js/icons.js?v=4.6"></script>
-    <script src="js/store.js?v=4.6"></script>
-    <script src="js/api.js?v=4.6"></script>
-    <script src="js/net.js?v=4.6"></script>
-    <script src="js/ui.js?v=4.6"></script>
-    <script src="js/app.js?v=4.6"></script>
+    <script src="js/icons.js?v=4.7"></script>
+    <script src="js/store.js?v=4.7"></script>
+    <script src="js/api.js?v=4.7"></script>
+    <script src="js/net.js?v=4.7"></script>
+    <script src="js/ui.js?v=4.7"></script>
+    <script src="js/app.js?v=4.7"></script>
 </body>
 </html>
