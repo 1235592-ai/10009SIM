@@ -12,8 +12,6 @@ window.Status = {
     // ---------- 틀 편집 (세계관 편집 화면) ----------
     renderDefs: function(w) {
         const list = document.getElementById('status-defs-list'); if(!list) return;
-        const inRoom = !!Store.state.activeRoomId;
-        const btn = document.getElementById('btn-status-from-template'); if(btn) btn.style.display = inRoom ? 'block' : 'none';
         list.innerHTML = this.defs(w).map(d => `
             <details class="item-card" id="det-st-${d.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
                 <summary>${IC('table')} ${UI.esc(d.title) || '새 스테이터스'}</summary>

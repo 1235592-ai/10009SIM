@@ -46,16 +46,67 @@ window.UI = {
         this.showToast("예시를 넣었습니다. [변경사항 저장]을 눌러야 저장됩니다.");
     },
 
-    // 채팅방 안의 세계관은 템플릿의 사본이다. 실수로 지웠을 때 원본 템플릿의 내용을 다시 가져온다.
-    pullFromTemplate: function(key) {
-        const r = Store.getActiveRoom(); if(!r) return; const w = r.worldInstance;
-        const src = Store.state.worlds.find(x => x.id === w.id) || Store.state.worlds.find(x => x.name === w.name);
-        if(!src) return alert("이 채팅방의 원본 템플릿을 찾지 못했습니다. (템플릿이 삭제되었거나 이름이 바뀌었을 수 있습니다)");
-        const label = key === 'netRules' ? '정보망 지침' : '스테이터스 틀';
-        if(!confirm(`이 채팅방의 ${label}을(를) 템플릿 [${src.name}]의 내용으로 바꾸시겠습니까?\n(이 채팅방에서 고친 내용은 사라집니다${key === 'statusDefs' ? '. 이미 채워진 수치는 같은 항목이면 유지됩니다' : ''})`)) return;
-        Store.syncWorldDOM();
-        w[key] = JSON.parse(JSON.stringify(src[key] || (key === 'netRules' ? {} : [])));
-        Store.forceSave(); this.renderWorld(); this.showToast(`템플릿에서 ${label}을(를) 가져왔습니다.`);
+    // 다른 템플릿의 스테이터스 틀이나 정보망 지침을 지금 편집 중인 세계관으로 가져온다.
+    // 스테이터스 틀은 골라서 덧붙이고(같은 제목이면 덮어쓰되 같은 이름 항목의 수치는 유지), 정보망 지침은 통째로 바꾼다.
+    tplImportKey: null,
+    openTemplateImport: function(key) {
+        const w = Store.getTargetWorld(); if(!w) return;
+        this.tplImportKey = key;
+        const inRoom = !!Store.state.activeRoomId;
+        // 템플릿 편집 중이면 자기 자신은 목록에서 뺀다. 채팅방이면 원본 템플릿을 맨 위에 둔다.
+        const list = Store.state.worlds.filter(x => inRoom || x.id !== w.id);
+        if(!list.length) return alert("가져올 다른 템플릿이 없습니다.");
+        const src = inRoom ? list.find(x => x.id === w.id) : null;
+        const ordered = src ? [src, ...list.filter(x => x !== src)] : list;
+        document.getElementById('tpl-import-title').innerHTML = IC(key === 'netRules' ? 'radio-tower' : 'table') + (key === 'netRules' ? ' 정보망 지침 가져오기' : ' 스테이터스 틀 가져오기');
+        document.getElementById('tpl-import-sel').innerHTML = ordered.map(x => `<option value="${x.id}">${this.esc(x.name)}${x === src ? ' (이 채팅방의 원본)' : ''}</option>`).join('');
+        this.renderTemplateImport();
+        this.openModal('tpl-import-modal');
+    },
+    renderTemplateImport: function() {
+        const src = Store.state.worlds.find(x => x.id === document.getElementById('tpl-import-sel').value);
+        const body = document.getElementById('tpl-import-body'); if(!src) { body.innerHTML = ''; return; }
+        if(this.tplImportKey === 'netRules') {
+            const nr = src.netRules || {};
+            const filled = ['community', 'darkweb', 'inbox'].filter(k => nr[k] && nr[k].trim());
+            body.innerHTML = filled.length
+                ? `<p class="hint">이 템플릿의 정보망 지침(${filled.map(k => ({ community: '커뮤니티', darkweb: '다크웹', inbox: '수신함' })[k]).join(', ')})으로 지금 내용을 통째로 바꿉니다.</p>`
+                : '<p class="hint">이 템플릿에는 정보망 지침이 비어 있습니다.</p>';
+            return;
+        }
+        const defs = src.statusDefs || [];
+        body.innerHTML = defs.length
+            ? `<p class="hint">가져올 틀을 고르세요. 같은 제목의 틀이 이미 있으면 그 틀을 덮어쓰고, 같은 이름의 항목은 채워진 수치를 유지합니다.</p>` +
+              defs.map(d => `<label class="tpl-import-row"><input type="checkbox" value="${d.id}" checked> <span><b>${this.esc(d.title) || '새 스테이터스'}</b><br><span class="hint">${d.items.map(it => `${this.esc(it.name)}(${it.max})`).join(', ') || '항목 없음'}</span></span></label>`).join('')
+            : '<p class="hint">이 템플릿에는 스테이터스 틀이 없습니다.</p>';
+    },
+    doTemplateImport: function() {
+        const w = Store.getTargetWorld(); const src = Store.state.worlds.find(x => x.id === document.getElementById('tpl-import-sel').value);
+        if(!w || !src) return;
+        Store.syncOpenPanels();
+        if(this.tplImportKey === 'netRules') {
+            if(!confirm(`지금 정보망 지침을 [${src.name}]의 내용으로 바꾸시겠습니까?\n(지금 적힌 내용은 사라집니다)`)) return;
+            w.netRules = JSON.parse(JSON.stringify(src.netRules || {}));
+        } else {
+            const picked = [...document.querySelectorAll('#tpl-import-body input[type=checkbox]:checked')].map(el => el.value);
+            if(!picked.length) return alert("가져올 틀을 하나 이상 고르세요.");
+            const defs = Status.defs(w);
+            (src.statusDefs || []).filter(d => picked.includes(d.id)).forEach(d => {
+                const copy = JSON.parse(JSON.stringify(d));
+                const same = defs.find(x => (x.title || '').trim() && x.title.trim() === (copy.title || '').trim());
+                if(same) {
+                    // 같은 제목: 틀 id를 유지하고, 같은 이름 항목은 기존 항목 id를 써서 채워진 수치가 이어지게 한다
+                    copy.id = same.id;
+                    copy.items.forEach(it => { const old = same.items.find(o => o.name === it.name); it.id = old ? old.id : Status.uid('si'); });
+                    defs[defs.indexOf(same)] = copy;
+                } else {
+                    copy.id = Status.uid('st'); copy.items.forEach(it => { it.id = Status.uid('si'); });
+                    defs.push(copy);
+                }
+            });
+        }
+        Store.forceSave(); this.closeOverlay(); this.refreshOpenPanel();
+        this.showToast(`[${src.name}]에서 가져왔습니다.`);
     },
 
     applyTheme: function() {
@@ -314,7 +365,6 @@ window.UI = {
         const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; 
         const wurlEl = document.getElementById('w-url'); if(wurlEl) wurlEl.value = w.bgUrl || '';
         const wrEl = document.getElementById('w-rules'); if(wrEl) { wrEl.value = w.rules || ''; setTimeout(() => this.autoResize(wrEl), 10); }
-        const netBtn = document.getElementById('btn-net-from-template'); if(netBtn) netBtn.style.display = Store.state.activeRoomId ? 'block' : 'none';
         Status.renderDefs(w);
         const nr = w.netRules || {};
         ['community', 'darkweb', 'inbox'].forEach(k => { const el = document.getElementById(`w-net-${k}`); if(el) { el.value = nr[k] || ''; setTimeout(() => this.autoResize(el), 10); } });
