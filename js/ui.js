@@ -623,7 +623,21 @@ window.UI = {
                 return `<span class="u-act">${html}</span>`;
             }).join('');
         }
-        return md(this.esc(t)).replace(/\n/g, "<br>"); 
+        // AI 응답: 마크다운 표(| 로 나눈 줄 + |---| 구분 줄)는 실제 표로 그린다
+        const cells = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => md(this.esc(c.trim())));
+        const isSep = (line) => line.includes('-') && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(line);
+        const lines = t.split('\n'); const out = [];
+        for(let i = 0; i < lines.length; i++) {
+            if(lines[i].includes('|') && i + 1 < lines.length && isSep(lines[i + 1])) {
+                const head = cells(lines[i]); const rows = []; i += 2;
+                while(i < lines.length && lines[i].includes('|') && lines[i].trim()) { rows.push(cells(lines[i])); i++; }
+                i--;
+                out.push({ html: `<div class="md-table-wrap"><table class="md-table"><thead><tr>${head.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${head.map((_, k) => `<td>${r[k] || ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`, block: true });
+            } else out.push({ html: md(this.esc(lines[i])), block: false });
+        }
+        // 줄바꿈은 <br>로 잇되, 표 앞뒤에는 넣지 않는다 (표에 붙은 빈 줄은 표의 여백과 겹치므로 뺀다)
+        const kept = out.filter((o, i) => o.block || o.html !== '' || !((out[i - 1] && out[i - 1].block) || (out[i + 1] && out[i + 1].block)));
+        return kept.map((o, i) => o.html + (i < kept.length - 1 && !o.block && !kept[i + 1].block ? '<br>' : '')).join('');
     },
     
     createCtrls: function(idx) {
