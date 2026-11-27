@@ -360,6 +360,21 @@ header {
 .msg-text > .md-h:first-child { margin-top: 0; }
 .md-hr { border: none; border-top: 1px solid var(--border-strong); margin: 14px 0; opacity: 0.8; }
 
+/* 스테이터스 */
+.status-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.status-table th:first-child { white-space: nowrap; }
+.status-table td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.status-table .input-std { width: 4.2em; margin: 0; padding: 6px; display: inline-block; }
+.status-table .area-std { margin: 0; min-height: 54px; padding: 6px; font-size: 0.9em; min-width: 9em; }
+.status-delta { font-size: 0.8em; font-weight: 700; margin-left: 4px; }
+.status-delta.up { color: var(--c-green); }
+.status-delta.down { color: var(--c-red); }
+.status-actions { display: flex; gap: 8px; margin-top: 8px; }
+.status-actions button { margin: 0; flex: 1; padding: 10px 6px; font-size: 0.9rem; }
+.status-item-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.status-item-row .input-std { margin: 0; }
+.status-item-row .input-std[type="number"] { width: 5em; flex-shrink: 0; }
+
 /* AI 응답 안의 표 */
 .md-table-wrap { overflow-x: auto; margin: 8px 0; }
 .md-table { border-collapse: collapse; width: 100%; font-size: 0.92em; line-height: 1.5; }
@@ -692,3 +707,4 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 :root[data-theme="light"] .sys-noti { background: rgba(47, 42, 36, 0.95); }
 :root[data-theme="light"] .edit-area { box-shadow: 0 0 0 3px rgba(47, 42, 36, 0.08); }
 :root[data-theme="light"] .net-attach { background: var(--surface-2); color: var(--text-sub); }
+:root[data-theme="light"] .status-delta.up { color: #2f7a4f; }
