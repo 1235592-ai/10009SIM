@@ -13,6 +13,7 @@ window.App = {
         await Store.init();
         
         const bgEl = document.getElementById('set-lobby-bg'); if(bgEl) bgEl.value = Store.state.lobbyBgUrl || '';
+        UI.applyTheme();
         UI.renderApiSettings();
         const rulesEl = document.getElementById('set-global-rules'); if(rulesEl) rulesEl.value = API.getRules();
 
@@ -249,7 +250,6 @@ window.App = {
         Store.state.activeRoomId = id; 
         const r = Store.getActiveRoom(); 
         if(!r.transientCharIds) r.transientCharIds = {}; 
-        r.lastUpdated = Date.now(); 
         document.getElementById('lobby-container').style.display = 'none'; 
         document.getElementById('game-container').style.display = 'flex'; 
         history.pushState({ page: 'room' }, ""); 
