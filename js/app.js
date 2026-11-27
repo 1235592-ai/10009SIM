@@ -450,7 +450,7 @@ window.App = {
             nr.name = t.name + " (새 회차)"; 
             nr.history = []; 
             nr.memory = ''; 
-            nr.net = {}; 
+            nr.net = {}; nr.status = {}; 
             nr.transientCharIds = {}; 
             nr.baitRecoveryNextTurn = false;
             nr.tone = 'normal';
@@ -495,7 +495,7 @@ window.App = {
             memory: '', 
             globalStatus: '', 
             currentLocIdx: -1, 
-            net: {}, 
+            net: {}, status: {}, 
             tagIds: [Store.ensureWorldTag(worldClone.name)].filter(x => x),
             transientCharIds: {}, 
             baitRecoveryNextTurn: false,

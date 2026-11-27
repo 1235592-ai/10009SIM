@@ -39,11 +39,23 @@ window.UI = {
         });
     },
 
-    fillHunterNetExample: function() {
+    fillNetExample: function(which, label) {
         const keys = ['community', 'darkweb', 'inbox'];
-        if(keys.some(k => document.getElementById(`w-net-${k}`).value.trim()) && !confirm("이미 적힌 내용을 헌터 세계관 예시로 덮어쓰시겠습니까?")) return;
-        keys.forEach(k => { const el = document.getElementById(`w-net-${k}`); el.value = Net.HUNTER_EXAMPLE[k]; this.autoResize(el); });
+        if(keys.some(k => document.getElementById(`w-net-${k}`).value.trim()) && !confirm(`이미 적힌 내용을 ${label} 예시로 덮어쓰시겠습니까?`)) return;
+        keys.forEach(k => { const el = document.getElementById(`w-net-${k}`); el.value = Net[which][k]; this.autoResize(el); });
         this.showToast("예시를 넣었습니다. [변경사항 저장]을 눌러야 저장됩니다.");
+    },
+
+    // 채팅방 안의 세계관은 템플릿의 사본이다. 실수로 지웠을 때 원본 템플릿의 내용을 다시 가져온다.
+    pullFromTemplate: function(key) {
+        const r = Store.getActiveRoom(); if(!r) return; const w = r.worldInstance;
+        const src = Store.state.worlds.find(x => x.id === w.id) || Store.state.worlds.find(x => x.name === w.name);
+        if(!src) return alert("이 채팅방의 원본 템플릿을 찾지 못했습니다. (템플릿이 삭제되었거나 이름이 바뀌었을 수 있습니다)");
+        const label = key === 'netRules' ? '정보망 지침' : '스테이터스 틀';
+        if(!confirm(`이 채팅방의 ${label}을(를) 템플릿 [${src.name}]의 내용으로 바꾸시겠습니까?\n(이 채팅방에서 고친 내용은 사라집니다${key === 'statusDefs' ? '. 이미 채워진 수치는 같은 항목이면 유지됩니다' : ''})`)) return;
+        Store.syncWorldDOM();
+        w[key] = JSON.parse(JSON.stringify(src[key] || (key === 'netRules' ? {} : [])));
+        Store.forceSave(); this.renderWorld(); this.showToast(`템플릿에서 ${label}을(를) 가져왔습니다.`);
     },
 
     applyTheme: function() {
@@ -213,7 +225,7 @@ window.UI = {
                 const r = Store.getActiveRoom();
                 const memInput = document.getElementById('room-memory-input'); memInput.value = r.memory || ''; 
                 const statInput = document.getElementById('global-status-input'); statInput.value = r.globalStatus || ''; 
-                Net.render(); 
+                Net.render(); Status.render(); 
                 setTimeout(() => {this.autoResize(memInput); this.autoResize(statInput);}, 10); 
             } 
         }
@@ -302,6 +314,8 @@ window.UI = {
         const wdEl = document.getElementById('w-d'); if(wdEl) wdEl.value = w.prompt || ''; 
         const wurlEl = document.getElementById('w-url'); if(wurlEl) wurlEl.value = w.bgUrl || '';
         const wrEl = document.getElementById('w-rules'); if(wrEl) { wrEl.value = w.rules || ''; setTimeout(() => this.autoResize(wrEl), 10); }
+        const netBtn = document.getElementById('btn-net-from-template'); if(netBtn) netBtn.style.display = Store.state.activeRoomId ? 'block' : 'none';
+        Status.renderDefs(w);
         const nr = w.netRules || {};
         ['community', 'darkweb', 'inbox'].forEach(k => { const el = document.getElementById(`w-net-${k}`); if(el) { el.value = nr[k] || ''; setTimeout(() => this.autoResize(el), 10); } });
         
