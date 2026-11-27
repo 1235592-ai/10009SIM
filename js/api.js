@@ -97,6 +97,39 @@ window.API = {
             npc: '특정 NPC를 숭배하거나 극단적으로 배려하는 서술 금지.' }
     ],
 
+    // 관전 모드(내 캐릭터를 지정하지 않은 시나리오)에서 전체 서술 지침 대신 쓰는 지침의 기본값
+    DEFAULT_SPECTATOR_RULES: `[역할]
+- 너는 이 세계의 서술자이자 진행자다. 등장하는 모든 인물, 세력, 사건, 크리쳐, 환경을 운영한다.
+- 세계관과 인물 설정은 함께 제공된 세계관 배경, 세계관 전용 지침, 인물·세력·장소 데이터를 따른다. Timeline(상황 요약)이 있으면 그것을 기준으로 이어간다.
+- 사용자는 이야기 안의 인물이 아니라 관전자다. 사용자 캐릭터는 없으며, 모든 인물의 대사·행동·감정·결정을 네가 쓴다.
+- 사용자의 입력은 관전자의 지시다. 장면 지정, 인물 투입, 사건 개입, 시점 이동, 시간 경과 등을 요청할 수 있다. 지시가 없으면 앞선 흐름을 이어 세계를 굴린다.
+
+[진행 원칙]
+- 인물은 각자의 목적, 이해관계, 성격, 알고 있는 정보에 따라 스스로 판단하고 움직인다. 이야기를 재미있게 만들기 위해 인물을 움직이지 않는다.
+- 결과는 세계의 논리로 정한다. 특정 인물이나 진영에 유리하게 기울이지 않으며, 실패, 부상, 사망, 손해도 개연성이 있으면 그대로 일어난다.
+- 관전자의 개입도 세계 안의 사건으로 처리한다. 개입이 일어난 뒤 인물들이 어떻게 반응하는지는 각자의 논리를 따른다.
+- 한 응답은 장면이 자연스럽게 끊기는 지점까지 진행한다. 누군가의 선택을 기다리며 멈추지 않는다.
+- 인물은 세계 안에서 실제로 알 수 있었던 것만 안다. 서술자가 아는 정보를 인물에게 넘기지 않는다.
+- 비밀 정보와 미정 사항은 관전 중에도 함부로 확정하거나 드러내지 않는다. 진행 중 정당한 경로로 밝혀질 때만 그 범위만큼 공개한다.
+
+[서술 규칙]
+- 3인칭 소설체. 장면 묘사를 기본으로 하고 대사와 행동을 섞는다.
+- 대사는 별도 줄로 쓰고, 서술 문단과 대사 사이에 빈 줄을 둔다. 묻는 말은 물음표로 끝낸다.
+- 시점은 기본적으로 장면 전체를 내려다보는 관찰자 시점이다. 관전자가 시점을 지정하면 그 인물을 중심으로 서술한다.
+
+[관전 명령어]
+사용자가 아래 명령어를 입력하면 해당 방식으로 다음 응답을 쓴다.
+- (진행): 지시 없이 현재 흐름을 한 장면 더 진행한다.
+- (장면: 내용): 지정한 장소·인물·상황으로 장면을 연다.
+- (개입: 내용): 지정한 사건이나 변수를 세계에 투입하고 그 결과를 진행한다.
+- (시점: 인물): 지정한 인물 중심으로 서술한다. 해제 전까지 유지한다.
+- (동시: 장소 A / 장소 B): 같은 시각 서로 다른 곳의 장면을 번갈아 보여준다.
+- (경과) / (경과: 기간): 시간을 건너뛰고, 그동안 세계와 인물에게 생긴 변화를 요약한 뒤 다음 장면을 연다.
+- (속마음): 직전 장면 주요 인물들의 속내를 짧게 보여준다.
+- (요약): 지금까지의 진행을 시점, 장소, 주요 사건, 인물 상태, 미해결 떡밥 순으로 간략히 정리한다.`,
+
+    getSpectatorRules: function() { return (Store.state.spectatorRules && Store.state.spectatorRules.trim()) ? Store.state.spectatorRules : this.DEFAULT_SPECTATOR_RULES; },
+
     getRules: function() { return (Store.state.globalRules && Store.state.globalRules.trim()) ? Store.state.globalRules : this.DEFAULT_RULES; },
 
     getProvider: function() { return this.PROVIDERS[Store.state.provider] ? Store.state.provider : 'gemini'; },
@@ -400,7 +433,9 @@ window.API = {
         let reg = null; if(loc && loc.regionId) reg = w.regions.find(rg => rg.id === loc.regionId);
         
         const activeNpcs = r.activeCharIds.map(id => w.characters.find(c=>c.id===id)).filter(c=>c&&c.id!=='sys'); 
-        const myChar = w.characters.find(c=>c.id===r.myCharId) || {keyword:'플레이어', desc:''};
+        // 내 캐릭터를 지정하지 않은 시나리오는 관전 모드다: 관전 지침을 쓰고, 사용자 캐릭터 정보는 보내지 않는다
+        const spectator = Store.isSpectator(r);
+        const myChar = w.characters.find(c=>c.id===r.myCharId) || {keyword:'관전자', desc:'', factionIds:[]};
         const facName = (fid) => w.factions.find(f=>f.id===fid)?.name;
 
         let myBlock = `<MyCharacter name="${myChar.keyword}">\n`;
@@ -441,12 +476,12 @@ window.API = {
 
         // ---------- system[0]
         const ruleLines = [];
-        this.SAFETY_ITEMS.forEach(it => { const v = Store.state.safety[it.key] || {}; if(v.user) ruleLines.push(it.user); if(v.npc) ruleLines.push(it.npc); });
+        this.SAFETY_ITEMS.forEach(it => { const v = Store.state.safety[it.key] || {}; if(v.user && !spectator) ruleLines.push(it.user); if(v.npc) ruleLines.push(it.npc); });
         // 분량은 설정 탭의 글자 수로 붙인다 (문단 수는 1000자당 3문단 정도로 맞춤)
         const len = Store.state.replyLength || 1500;
         const paras = Math.max(2, Math.round(len / 1000 * 3));
         const worldRules = w.rules && w.rules.trim() ? `\n\n[세계관 전용 지침]\n${w.rules.trim()}` : '';
-        const stable = `${this.getRules().split('{{user}}').join(myChar.keyword)}
+        const stable = `${spectator ? this.getSpectatorRules() : this.getRules().split('{{user}}').join(myChar.keyword)}
 
 [분량]
 - 한 응답은 ${len}자 내외, ${paras}문단 안팎으로 쓴다. 전투나 큰 사건은 더 길게 쓸 수 있다.
@@ -459,10 +494,10 @@ ${ruleLines.length > 0 ? "- " + ruleLines.join('\n- ') : "- 검열 없음."}
 - 마지막 사용자 메시지 뒤에 <이번 턴 참고> 블록이 붙을 수 있다. 앱이 붙인 참고 자료이며 사용자의 입력이 아니다. 그 안의 인물, 세력, 지식, 수신함 정보는 아래 데이터와 같은 무게로 따른다.
 
 [세계관 배경]
-${w.prompt || ''}${worldRules}
+${w.prompt || ''}${worldRules}${spectator ? '' : `
 
 [사용자 캐릭터 데이터]
-${myBlock}`;
+${myBlock}`}`;
 
         // ---------- system[1]
         let semi = `[등장 요소 데이터]\n${activeNpcs.map(npcBlock).join('\n')}\n${Array.from(baseFactionIds).map(facBlock).filter(x=>x).join('\n')}\n
@@ -475,7 +510,7 @@ ${myBlock}`;
         // ---------- tail
         let tail = '';
         if(transientNpcs.length) tail += `[최근 언급된 인물]\n${transientNpcs.map(npcBlock).join('\n')}\n${Array.from(tailFactionIds).map(facBlock).filter(x=>x).join('\n')}\n`;
-        tail += Net.chatContext(r);
+        if(!spectator) tail += Net.chatContext(r);
 
         let info = []; 
         w.factions.forEach(f => { if(f.name && scan.includes(f.name) && !baseFactionIds.has(f.id) && !tailFactionIds.has(f.id)) info.push(`- 세력 ${f.name}: ${f.desc}`); }); 

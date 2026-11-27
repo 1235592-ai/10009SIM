@@ -18,6 +18,7 @@ window.App = {
         if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
         UI.renderApiSettings();
         const rulesEl = document.getElementById('set-global-rules'); if(rulesEl) rulesEl.value = API.getRules();
+        const specEl = document.getElementById('set-spectator-rules'); if(specEl) specEl.value = API.getSpectatorRules();
 
         history.replaceState({ page: 'lobby' }, "");
         document.getElementById('game-container').style.display = 'none';
@@ -266,7 +267,8 @@ window.App = {
 
     loadActiveRoom: function(preserveScroll = false) {
         const r = Store.getActiveRoom(); if(!r) return; const w = r.worldInstance;
-        const myChar = w.characters.find(c => c.id === r.myCharId); document.getElementById('header-user-name').innerText = myChar ? myChar.keyword : '무명';
+        const myChar = w.characters.find(c => c.id === r.myCharId); document.getElementById('header-user-name').innerText = myChar ? myChar.keyword : '관전';
+        document.getElementById('msg-input').placeholder = myChar ? '대화를 입력하세요.' : '지시를 입력하세요. 비워 두면 (진행)';
         const actNpcs = r.activeCharIds.map(cid => w.characters.find(c=>c.id===cid)).filter(c=>c&&c.id!=='sys'); document.getElementById('header-npc-names').innerText = actNpcs.length > 0 ? actNpcs.map(c=>c.keyword).join(', ') : 'NPC 없음';
         let locName = "자유 이동 (미분류)"; if(r.currentLocIdx >= 0 && w.locations[r.currentLocIdx]) { const l = w.locations[r.currentLocIdx]; const reg = w.regions.find(rg => rg.id === l.regionId); locName = reg ? `${reg.name} - ${l.name}` : l.name; }
         document.getElementById('header-loc-name').innerHTML = IC('compass') + ' 위치: ' + UI.esc(locName); UI.setBackground(w.bgUrl); 
@@ -282,7 +284,7 @@ window.App = {
     handleAction: async function() {
         if(!Store.state.apiKey) return alert("설정 탭에서 API Key를 먼저 입력해주세요!");
         if(this.isGenerating) return; const el = document.getElementById('msg-input'); let text = el.value.trim(); 
-        if(!text) text = "(계속)";
+        if(!text) text = Store.isSpectator(Store.getActiveRoom()) ? "(진행)" : "(계속)";
         const r = Store.getActiveRoom(); r.history.push({ role:'user', variants:[text], currentVariant:0 }); r.lastUpdated = Date.now();
         UI.appendMessageDOM(r.history[r.history.length-1], r.history.length-1); el.value = ''; el.style.height = '45px'; UI.updateActionBtn(); Store.forceSave(); UI.scrollToBottom(true);
         this.runAI();
@@ -383,7 +385,7 @@ window.App = {
         const prevSummary = cut >= 0 ? mem.substring(cut).split('[자동 요약]').filter(x => x.trim()).pop().trim() : '';
         try { 
             const sysPrompt = `이전 요약과 최근 대화를 합쳐, 지금까지의 진행을 하나의 최신 요약으로 다시 쓴다. 이전 요약의 내용 중 여전히 유효한 것은 유지하고, 바뀐 것은 고치고, 새로 생긴 것은 더한다.
-항목마다 한두 줄로 쓴다: 현재 시점(세계 내 날짜·시각)과 장소, 사용자 캐릭터 상태, 주요 사건, 인물 관계 변화, 미해결 떡밥·약속·예고된 사건.
+항목마다 한두 줄로 쓴다: 현재 시점(세계 내 날짜·시각)과 장소, ${Store.isSpectator(r) ? '주요 인물 상태' : '사용자 캐릭터 상태'}, 주요 사건, 인물 관계 변화, 미해결 떡밥·약속·예고된 사건.
 장면 묘사와 대사는 넣지 않으며, 전체 20줄 안팎으로 맞춘다. 요약만 출력한다.`;
 
             const text = await API.callLLM([{role:'user', parts:[{text: `[이전 요약]\n${prevSummary || '없음'}\n\n[최근 대화]\n\n${histText}`}]}], sysPrompt); 
@@ -480,15 +482,14 @@ window.App = {
         const sourceWorld = Store.state.worlds.find(w => w.id === wId); 
         const worldClone = JSON.parse(JSON.stringify(sourceWorld)); 
         this.remapWorldIds(worldClone); 
-        let myC = worldClone.characters.find(c => c.id !== 'sys' && !c.isHidden); 
-        if(!myC) { myC = {id:'c_'+Date.now(), keyword:'플레이어', desc:'주인공.', secret:'', stats:[], reputation:[], factionIds:[], triggerLocId:'', isHidden:false}; worldClone.characters.push(myC); } 
+        // 새 시나리오는 관전 모드로 시작한다. 세력 화면에서 [내 캐릭터 지정]을 누르면 그 인물로 참여한다.
         
         Store.state.rooms.unshift({ 
             id: 'r_'+Date.now(), 
             name: document.getElementById('new-room-name').value.trim() || '새 시나리오', 
             lastUpdated: Date.now(), 
             worldInstance: worldClone, 
-            myCharId: myC.id, 
+            myCharId: null, 
             activeCharIds: ['sys'], 
             history: [], 
             memory: '', 

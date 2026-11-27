@@ -451,6 +451,7 @@ window.UI = {
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <div style="display:flex; gap:6px;">
                         ${r && !isMy ? `<button onclick="Store.setMyChar('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem;">내 캐릭터 지정</button>` : ''}
+                        ${r && isMy ? `<button onclick="Store.clearMyChar()" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem;">내 캐릭터 해제 (관전)</button>` : ''}
                         ${r && !isMy ? `<button onclick="Store.toggleActiveNpc('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem; border-color:${isNpc?'var(--c-green)':'var(--border-strong)'}; color:${isNpc?'var(--c-green)':'var(--text-muted)'};">${isNpc?'주연 해제':'주연 추가'}</button>` : ''}
                     </div>
                     <label style="font-size:0.85rem; color:var(--text-muted); cursor:pointer;">
@@ -493,7 +494,7 @@ window.UI = {
         if(r) {
             const my = w.characters.find(c=>c.id===r.myCharId); 
             const act = w.characters.filter(c=>r.activeCharIds.includes(c.id) && c.id!==r.myCharId && c.id!=='sys'); 
-            document.getElementById('char-my-area').innerHTML = my ? this.buildCharHTML(my, true, false, w, 'my') : ''; 
+            document.getElementById('char-my-area').innerHTML = my ? this.buildCharHTML(my, true, false, w, 'my') : '<p class="hint">지정된 캐릭터가 없어 관전 모드입니다. 인물을 펼쳐 [내 캐릭터 지정]을 누르면 그 인물로 참여합니다.</p>'; 
             document.getElementById('char-active-area').innerHTML = act.length ? act.map(c=>this.buildCharHTML(c, false, true, w, 'act')).join('') : '<p class="hint">참여 중인 주연이 없습니다.</p>'; 
         } else {
             document.getElementById('char-my-area').innerHTML = ''; 
@@ -591,7 +592,7 @@ window.UI = {
         if(m.role === 'user') { 
             const speaker = document.createElement('div'); speaker.className = 'speaker-name'; 
             const myC = w.characters.find(c=>c.id===r.myCharId); 
-            speaker.innerText = myC ? myC.keyword : 'USER'; 
+            speaker.innerText = myC ? myC.keyword : '관전자'; 
             d.appendChild(speaker); 
         }
         
@@ -606,6 +607,13 @@ window.UI = {
     
     formatMsg: function(t, role) { 
         const md = (x) => x.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
+        if(role === 'user' && Store.isSpectator(Store.getActiveRoom())) {
+            // 관전 모드: 입력은 전부 지시이므로 평범한 글씨로, (명령어)만 회색으로 보여준다
+            return t.split(/(\([^)]*\))/g).filter(seg => seg).map(seg => {
+                const html = md(this.esc(seg)).replace(/\n/g, '<br>');
+                return seg.startsWith('(') ? `<span class="u-ooc">${html}</span>` : `<span class="u-say">${html}</span>`;
+            }).join('');
+        }
         if(role === 'user') {
             // 서술(행동) / "대사" / (진행 밖 요청)으로 나눠 각각 다른 모양으로 보여준다
             return t.split(/(\([^)]*\)|"[^"]*"|“[^”]*”)/g).filter(seg => seg).map(seg => {

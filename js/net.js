@@ -89,7 +89,7 @@ window.Net = {
         return r.net;
     },
     uid: function(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5); },
-    myChar: function(r) { return r.worldInstance.characters.find(c => c.id === r.myCharId) || { keyword: '플레이어', desc: '' }; },
+    myChar: function(r) { return r.worldInstance.characters.find(c => c.id === r.myCharId) || { keyword: '관전자', desc: '' }; },
 
     // 정보망 생성 재료: 비밀 칸과 세계관 전용 지침은 넣지 않는다 (공개 정보만)
     context: function(r) {
@@ -98,7 +98,8 @@ window.Net = {
             .map(c => `- ${c.keyword}: ${(c.desc || '').replace(/\n/g, ' ').substring(0, 300)}`).join('\n');
         const facs = w.factions.filter(f => f.name).map(f => `- ${f.name}: ${(f.desc || '').replace(/\n/g, ' ').substring(0, 200)}`).join('\n');
         const recent = r.history.slice(-8).filter(m => !m.hidden).map(m => `${m.role === 'user' ? '[사용자]' : '[서술]'} ${m.variants[m.currentVariant]}`).join('\n\n');
-        return `[세계관: ${w.name}]\n${w.prompt || ''}\n\n[사용자 캐릭터]\n${my.keyword}: ${(my.desc || '').substring(0, 600)}\n\n[인물 (공개 정보)]\n${chars || '없음'}\n\n[세력 (공개 정보)]\n${facs || '없음'}\n\n[상황 요약]\n${r.memory || '없음'}\n\n[최근 진행]\n${recent || '없음'}`;
+        const mine = Store.isSpectator(r) ? '' : `\n\n[사용자 캐릭터]\n${my.keyword}: ${(my.desc || '').substring(0, 600)}`;
+        return `[세계관: ${w.name}]\n${w.prompt || ''}${mine}\n\n[인물 (공개 정보)]\n${chars || '없음'}\n\n[세력 (공개 정보)]\n${facs || '없음'}\n\n[상황 요약]\n${r.memory || '없음'}\n\n[최근 진행]\n${recent || '없음'}`;
     },
     safetyLines: function() {
         const lines = []; API.SAFETY_ITEMS.forEach(it => { const v = Store.state.safety[it.key] || {}; if(v.user) lines.push(it.user); if(v.npc) lines.push(it.npc); });
@@ -174,7 +175,8 @@ window.Net = {
         const where = board === 'community' ? '커뮤니티' : '다크웹 광장';
         const comments = post.detail.comments.slice(0, 5).map(c => `- ${c.author}${c.grade ? ' [' + c.grade + ']' : ''}: ${c.text}`).join('\n');
         // 화면에는 보이지 않고 AI만 아는 메모로 대화 기록에 넣는다
-        const text = `(공유: ${this.myChar(r).keyword}이(가) ${where}에서 본 글이다. 이 글을 아는 상태로 진행하되, 이야기 속에서 일부러 꺼내지 않는다.)\n[${post.tag}] ${post.title} — ${post.author}${post.grade ? ' [' + post.grade + ']' : ''} · ${post.time} · ↑${post.up} ↓${post.down}\n${post.detail.body}\n댓글:\n${comments}`;
+        const lead = Store.isSpectator(r) ? `(참고: ${where}에 올라와 있는 글이다. 세계 안에 이 글이 존재하는 상태로 진행하되, 일부러 끌어오지 않는다.)` : `(공유: ${this.myChar(r).keyword}이(가) ${where}에서 본 글이다. 이 글을 아는 상태로 진행하되, 이야기 속에서 일부러 꺼내지 않는다.)`;
+        const text = `${lead}\n[${post.tag}] ${post.title} — ${post.author}${post.grade ? ' [' + post.grade + ']' : ''} · ${post.time} · ↑${post.up} ↓${post.down}\n${post.detail.body}\n댓글:\n${comments}`;
         r.history.push({ role: 'user', hidden: true, kind: 'share', variants: [text], currentVariant: 0 });
         post.shared = true; Store.forceSave(); this.render(); UI.showToast("채팅 AI에게 공유했습니다.");
     },
@@ -279,6 +281,11 @@ window.Net = {
     render: function() {
         const view = document.getElementById('net-view'); if(!view) return;
         const r = Store.getActiveRoom(); if(!r) return;
+        // 수신함은 내 캐릭터 개인 채널이라 관전 모드에서는 숨긴다
+        const spectator = Store.isSpectator(r);
+        const inboxTab = document.getElementById('net-tab-inbox'); if(inboxTab) inboxTab.style.display = spectator ? 'none' : '';
+        document.querySelector('.net-tabs').style.gridTemplateColumns = spectator ? 'repeat(2, 1fr)' : '';
+        if(spectator && this.tab === 'inbox') this.tab = 'community';
         document.querySelectorAll('.net-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === this.tab));
         view.innerHTML = this.tab === 'inbox' ? this.renderInbox(r) : this.renderBoard(r, this.tab);
     },

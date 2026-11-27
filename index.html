@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b0b0f">
     <!-- 저장된 테마를 화면이 그려지기 전에 적용한다 (잠깐 다른 색으로 깜빡이는 것 방지) -->
     <script>try { if(localStorage.getItem('10009sim-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch(e) {}</script>
-    <link rel="stylesheet" href="css/style.css?v=4.8">
+    <link rel="stylesheet" href="css/style.css?v=4.9">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -80,6 +80,18 @@
                     </p>
                     <textarea id="set-global-rules" class="area-std" style="min-height:320px; font-size:0.88rem;" onchange="Store.saveGlobalRules()"></textarea>
                     <button class="btn-ghost" onclick="Store.resetGlobalRules()">기본 지침으로 되돌리기</button>
+                </div>
+            </details>
+
+            <details class="acc-sec">
+                <summary style="color:var(--c-violet);"><i data-ic="eye"></i> 관전 지침</summary>
+                <div class="acc-body">
+                    <p class="hint">
+                        내 캐릭터를 지정하지 않은 시나리오(관전 모드)에서 전체 서술 지침 대신 들어가는 규칙입니다.<br>
+                        * 분량과 안전 설정은 따로 추가됩니다. 안전 설정의 "사용자 캐릭터 대상"은 관전 모드에서 적용되지 않습니다.
+                    </p>
+                    <textarea id="set-spectator-rules" class="area-std" style="min-height:320px; font-size:0.88rem;" onchange="Store.saveSpectatorRules()"></textarea>
+                    <button class="btn-ghost" onclick="Store.resetSpectatorRules()">기본 관전 지침으로 되돌리기</button>
                 </div>
             </details>
 
@@ -261,7 +273,7 @@
 
         <h3 style="color:var(--c-red);"><i data-ic="radio-tower"></i> 정보망</h3>
         <div class="net-tabs">
-            <button class="net-tab" data-tab="inbox" onclick="Net.setTab('inbox')">수신함</button>
+            <button class="net-tab" data-tab="inbox" id="net-tab-inbox" onclick="Net.setTab('inbox')">수신함</button>
             <button class="net-tab" data-tab="community" onclick="Net.setTab('community')">커뮤니티</button>
             <button class="net-tab" data-tab="darkweb" onclick="Net.setTab('darkweb')">다크웹</button>
         </div>
@@ -280,11 +292,11 @@
     <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3><i data-ic="tag"></i> 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')"><i data-ic="x"></i></button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
     <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
-    <script src="js/icons.js?v=4.8"></script>
-    <script src="js/store.js?v=4.8"></script>
-    <script src="js/api.js?v=4.8"></script>
-    <script src="js/net.js?v=4.8"></script>
-    <script src="js/ui.js?v=4.8"></script>
-    <script src="js/app.js?v=4.8"></script>
+    <script src="js/icons.js?v=4.9"></script>
+    <script src="js/store.js?v=4.9"></script>
+    <script src="js/api.js?v=4.9"></script>
+    <script src="js/net.js?v=4.9"></script>
+    <script src="js/ui.js?v=4.9"></script>
+    <script src="js/app.js?v=4.9"></script>
 </body>
 </html>
