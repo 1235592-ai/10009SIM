@@ -264,8 +264,8 @@ window.UI = {
             <div class="lobby-card-title">${this.esc(w.name)}</div>
             <div class="lobby-card-meta">인물 ${w.characters.filter(c => c.id !== 'sys').length} · 지역 ${w.regions.length} · 장소 ${w.locations.length}</div>
             <div class="card-btns">
-                <button class="btn-play btn-world" onclick="App.editWorldTemplate('${w.id}')">세계관</button>
-                <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong);" onclick="App.editWorldChars('${w.id}')">세력</button>
+                <button class="btn-play btn-world" onclick="App.editWorldTemplate('${w.id}')">${IC('globe')} 세계관</button>
+                <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong);" onclick="App.editWorldChars('${w.id}')">${IC('users')} 세력</button>
                 <button class="btn-icon danger" onclick="Store.deleteWorldTemplate('${w.id}')" title="템플릿 삭제">${IC('trash-2')}</button>
             </div>
         </div>`).join(''); 
