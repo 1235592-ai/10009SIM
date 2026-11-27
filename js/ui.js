@@ -56,7 +56,6 @@ window.UI = {
         const maxH = el.classList.contains('edit-area') ? Math.max(300, Math.round(window.innerHeight * 0.65)) : 300; 
         if (el.scrollHeight >= maxH) { el.style.height = maxH + 'px'; el.style.overflowY = 'auto'; } 
         else { el.style.height = el.scrollHeight + 'px'; el.style.overflowY = 'hidden'; }
-        if (el.id === 'msg-input') this.scrollToBottom(true); 
     },
 
     scrollToBottom: function(instant = false) { const c = document.getElementById('chat-container'); if(instant) c.scrollTop = c.scrollHeight; else c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' }); },
@@ -624,7 +623,14 @@ window.UI = {
             
             const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="메시지 직접 수정"; eb.onclick=()=>this.enterEdit(idx); 
             const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="⏪"; rw.title="이후 대화 지우고 되감기"; rw.onclick=()=>App.rewindRoom(idx); 
-            const db = document.createElement('button'); db.innerText="🗑️"; db.title="메시지 삭제"; db.onclick=()=>{ if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); Store.forceSave(); App.loadActiveRoom(true); }; 
+            const db = document.createElement('button'); db.innerText="🗑️"; db.title="메시지 삭제"; db.onclick=()=>{
+                // 재생성한 버전이 여러 개면 지금 보고 있는 버전 하나만 지운다
+                if(m.variants.length > 1) {
+                    if(!confirm(`지금 보고 있는 버전(${m.currentVariant+1}/${m.variants.length})만 삭제하시겠습니까?`)) return;
+                    m.variants.splice(m.currentVariant, 1); m.currentVariant = Math.min(m.currentVariant, m.variants.length - 1); delete m.usage;
+                } else { if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); }
+                Store.forceSave(); App.loadActiveRoom(true);
+            }; 
             
             moreBtn.onclick = () => { moreMenu.style.display = moreMenu.style.display==='none' ? 'inline-flex' : 'none'; };
             moreMenu.append(eb, rw, db);

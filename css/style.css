@@ -35,9 +35,12 @@ html, body { height: 100dvh; overflow: hidden; overscroll-behavior: none; backgr
 
 /* 배경 이미지는 body가 아닌 고정 레이어에 둔다 (키보드가 올라올 때 아래가 비어 보이는 현상 방지) */
 #app-bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; background-repeat: no-repeat; }
+/* 글자가 잘 보이도록 배경 이미지를 어둡게 덮는다 (채팅 화면은 #game-container가 한 번 더 덮어 더 어둡다) */
+#app-bg::after { content: ""; position: absolute; inset: 0; background: rgba(11, 11, 15, 0.6); }
 
 body {
-    background-color: var(--bg-color);
+    /* body에 불투명한 배경을 주면 뒤에 있는 #app-bg를 가린다. 바탕색은 html이 맡는다 */
+    background-color: transparent;
     color: var(--text-main);
     overflow: hidden;
     display: flex;
@@ -223,7 +226,7 @@ h3 { font-size: 1rem; margin-bottom: 10px; }
     inset: 0;
     display: flex;
     flex-direction: column;
-    background-color: rgba(11, 11, 15, 0.82);
+    background-color: rgba(11, 11, 15, 0.55);
     min-height: 0;
 }
 
