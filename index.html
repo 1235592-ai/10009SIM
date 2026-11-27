@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b0b0f">
     <!-- 저장된 테마를 화면이 그려지기 전에 적용한다 (잠깐 다른 색으로 깜빡이는 것 방지) -->
     <script>try { if(localStorage.getItem('10009sim-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch(e) {}</script>
-    <link rel="stylesheet" href="css/style.css?v=4.5">
+    <link rel="stylesheet" href="css/style.css?v=4.6">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -228,7 +228,7 @@
             <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; font-size:0.9rem;" onclick="Store.addCharacter()">새 인물</button>
             <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; font-size:0.9rem; border-color:var(--c-blue); color:var(--c-blue);" onclick="Store.addFaction()">새 세력</button>
             <button type="button" id="magic-char-btn" class="btn-main btn-solid" style="margin:0; padding:12px 4px; background:#6366f1; font-size:0.9rem;" onclick="App.runCharGenerator()" title="AI 자동 생성">AI 인물 연성</button>
-            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; border-color:var(--c-sky); color:var(--c-sky); font-size:0.9rem;" onclick="UI.openImportModal()">가져오기</button>
+            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; border-color:var(--c-sky); color:var(--c-sky); font-size:0.9rem;" onclick="UI.openImportModal()"><i data-ic="file-down"></i> 가져오기</button>
         </div>
         <p class="hint" style="margin-bottom:20px;">* 인물의 [소속 세력]에서 세력을 추가하면 그 세력 묶음으로 옮겨집니다.<br>* 빈 칸에 커서를 두고 위의 <i data-ic="wand-sparkles"></i> 버튼을 누르면 AI가 내용을 채워줍니다.</p>
         
@@ -280,11 +280,11 @@
     <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3><i data-ic="tag"></i> 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')"><i data-ic="x"></i></button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
     <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
-    <script src="js/icons.js?v=4.5"></script>
-    <script src="js/store.js?v=4.5"></script>
-    <script src="js/api.js?v=4.5"></script>
-    <script src="js/net.js?v=4.5"></script>
-    <script src="js/ui.js?v=4.5"></script>
-    <script src="js/app.js?v=4.5"></script>
+    <script src="js/icons.js?v=4.6"></script>
+    <script src="js/store.js?v=4.6"></script>
+    <script src="js/api.js?v=4.6"></script>
+    <script src="js/net.js?v=4.6"></script>
+    <script src="js/ui.js?v=4.6"></script>
+    <script src="js/app.js?v=4.6"></script>
 </body>
 </html>
