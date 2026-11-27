@@ -77,7 +77,7 @@ window.Status = {
         view.innerHTML = `
             <div class="status-pick">
                 <select class="select-std" onchange="Status.select('defId', this.value)">${defs.map(d => `<option value="${d.id}" ${d.id === def.id ? 'selected' : ''}>${UI.esc(d.title) || '새 스테이터스'}</option>`).join('')}</select>
-                <select class="select-std" onchange="Status.select('charId', this.value)">${chars.map(c => `<option value="${c.id}" ${c.id === char.id ? 'selected' : ''}>${UI.esc(c.keyword)}</option>`).join('')}</select>
+                <select class="select-std" onchange="Status.select('charId', this.value)">${this.charOptions(r, def, chars, char)}</select>
             </div>
             ${this.busy ? '<div class="typing-indicator" style="margin:8px 0;"><span></span><span></span><span></span></div>' : ''}
             <div class="md-table-wrap"><table class="md-table status-table"><thead><tr><th>항목</th><th>수치</th><th>비고</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
@@ -86,6 +86,19 @@ window.Status = {
                     ? `<button class="btn-play" onclick="Status.saveEdit()">저장</button><button class="btn-ghost" onclick="Status.select('editing', false)">취소</button>`
                     : `<button class="btn-play" ${dis} onclick="Status.refresh()">${IC('refresh-cw')} 갱신</button><button class="btn-ghost" ${dis} onclick="Status.select('editing', true)">${IC('pencil')} 수정</button><button class="btn-ghost" ${dis} onclick="Status.share()">채팅에 공유</button>`}
             </div>`;
+    },
+
+    // 인물 선택 목록: 내 캐릭터·주연 → 이 틀을 채운 적 있는 인물 → 나머지(가나다순)
+    charOptions: function(r, def, chars, char) {
+        const byName = (a, b) => a.keyword.localeCompare(b.keyword, 'ko');
+        const filled = this.store(r)[def.id] || {};
+        const hasValue = (c) => Object.values((filled[c.id] || {}).rows || {}).some(row => row && row.value !== null && row.value !== undefined);
+        const main = chars.filter(c => c.id === r.myCharId || r.activeCharIds.includes(c.id)).sort((a, b) => (b.id === r.myCharId) - (a.id === r.myCharId) || byName(a, b));
+        const used = chars.filter(c => !main.includes(c) && hasValue(c)).sort(byName);
+        const rest = chars.filter(c => !main.includes(c) && !used.includes(c)).sort(byName);
+        const opt = (c) => `<option value="${c.id}" ${c.id === char.id ? 'selected' : ''}>${UI.esc(c.keyword)}</option>`;
+        const group = (label, list) => list.length ? `<optgroup label="${label}">${list.map(opt).join('')}</optgroup>` : '';
+        return group('내 캐릭터 · 주연', main) + group('채운 적 있음', used) + group('전체 (가나다순)', rest);
     },
 
     saveEdit: function() {
