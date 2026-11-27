@@ -19,21 +19,29 @@ async function runJob(m, clientId) {
   const job = { raw: '', done: false, error: null, abort: new AbortController() };
   jobs.set(m.id, job);
   const post = async (msg) => { try { const c = await self.clients.get(clientId); if (c) c.postMessage(msg); } catch (e) {} };
-  try {
-    const res = await fetch(m.url, { method: 'POST', headers: m.headers, body: m.body, signal: job.abort.signal });
-    if (!res.ok) {
-      job.error = { status: res.status, body: (await res.text()).slice(0, 2000) };
-    } else {
-      const reader = res.body.getReader(); const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read(); if (done) break;
-        const text = decoder.decode(value, { stream: true }); if (!text) continue;
-        const offset = job.raw.length; job.raw += text;
-        await post({ type: 'llm-chunk', id: m.id, offset, text });
+  // 보내자마자 다른 앱으로 넘어가면 폰이 연결을 끊어 버리는 경우가 있다.
+  // 아직 한 글자도 못 받은 상태에서 끊겼을 때만 새 연결로 다시 보낸다 (최대 2번).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    job.error = null;
+    try {
+      const res = await fetch(m.url, { method: 'POST', headers: m.headers, body: m.body, signal: job.abort.signal });
+      if (!res.ok) {
+        job.error = { status: res.status, body: (await res.text()).slice(0, 2000) };
+      } else {
+        const reader = res.body.getReader(); const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read(); if (done) break;
+          const text = decoder.decode(value, { stream: true }); if (!text) continue;
+          const offset = job.raw.length; job.raw += text;
+          await post({ type: 'llm-chunk', id: m.id, offset, text });
+        }
       }
+    } catch (err) {
+      job.error = { status: 0, body: String((err && err.message) || err) };
     }
-  } catch (err) {
-    job.error = { status: 0, body: String((err && err.message) || err) };
+    const dropped = job.error && job.error.status === 0 && !job.raw && !job.abort.signal.aborted;
+    if (!dropped) break;
+    await new Promise(r => setTimeout(r, 1500));
   }
   job.done = true;
   // 일꾼이 꺼졌다 켜져도 끝난 결과는 남도록 저장해 둔다 (페이지가 가져가면 지운다)
