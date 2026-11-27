@@ -46,6 +46,14 @@ window.UI = {
         this.showToast("예시를 넣었습니다. [💾 변경사항 저장]을 눌러야 저장됩니다.");
     },
 
+    applyTheme: function() {
+        const theme = Store.state.theme === 'light' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+        try { localStorage.setItem('10009sim-theme', theme); } catch(e) {}
+        const meta = document.querySelector('meta[name="theme-color"]'); if(meta) meta.content = theme === 'light' ? '#f6f1e7' : '#0b0b0f';
+        const sel = document.getElementById('set-theme'); if(sel) sel.value = theme;
+    },
+
     setBackground: function(url) { const bg = document.getElementById('app-bg'); if(bg) bg.style.backgroundImage = url ? `url('${url}')` : 'none'; },
 
     esc: function(s) { return s === undefined || s === null ? '' : s.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); },
@@ -227,7 +235,7 @@ window.UI = {
             
             return `
             <div class="lobby-card ${isRecent ? 'recent' : ''}">
-                ${isRecent ? '<span class="lobby-card-tag" style="background:#dc2626;">🔥 이어하기</span>' : ''}
+                ${isRecent ? '<span class="lobby-card-tag btn-solid" style="background:#dc2626;">🔥 이어하기</span>' : ''}
                 <div class="lobby-card-title">${this.esc(r.name)}</div>
                 <div class="lobby-card-meta">🌌 ${this.esc(r.worldInstance.name)} · 턴 ${r.history.length}</div>
                 <div class="lobby-card-tags">${tagsHtml}${addTagSelect}</div>
@@ -257,7 +265,7 @@ window.UI = {
             <div class="lobby-card-meta">👤 ${w.characters.filter(c => c.id !== 'sys').length}명 · 🗺️ ${w.regions.length}지역 · 📍 ${w.locations.length}장소</div>
             <div class="card-btns">
                 <button class="btn-play btn-world" onclick="App.editWorldTemplate('${w.id}')">🛠 세계관</button>
-                <button class="btn-play" style="background:var(--surface-3); color:#fff;" onclick="App.editWorldChars('${w.id}')">👥 세력</button>
+                <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong);" onclick="App.editWorldChars('${w.id}')">👥 세력</button>
                 <button class="btn-icon danger" onclick="Store.deleteWorldTemplate('${w.id}')" title="템플릿 삭제">✖</button>
             </div>
         </div>`).join(''); 
@@ -293,7 +301,7 @@ window.UI = {
         const renderLoreItem = (l) => `
             <div class="item-card" style="margin-bottom:8px;" data-sort-type="l" data-sort-id="${l.id}">
                 <details id="det-l-${l.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-                    <summary style="color:#eee;">${this.DRAG}📄 ${this.esc(l.keyword) || '새 지식'}</summary>
+                    <summary style="color:var(--text-main);">${this.DRAG}📄 ${this.esc(l.keyword) || '새 지식'}</summary>
                     <div style="margin-top:10px;">
                         <select class="select-std" id="l-fld-${l.id}">
                             <option value="">(상위 분류 없음)</option>
@@ -318,13 +326,13 @@ window.UI = {
                     <div style="margin-top:10px;">
                         <input type="text" class="input-std" id="lf-n-${lf.id}" value="${this.esc(lf.name)}" placeholder="분류명">
                         <textarea class="area-std auto-resize" id="lf-d-${lf.id}" placeholder="설명" oninput="UI.autoResize(this);">${this.esc(lf.desc)}</textarea>
-                        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #3f3f46;">
+                        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
                             ${folderMap[lf.id].map(renderLoreItem).join('')}
                             <button class="btn-ghost" style="margin:0; padding:6px;" onclick="Store.addLore('${lf.id}')">+ 📄 이 분류에 지식 추가</button>
                         </div>
                     </div>
                 </details>`).join('');
-            lfList.innerHTML += folderMap[''].length > 0 ? folderMap[''].map(renderLoreItem).join('') : '<p style="font-size:0.85rem; color:#71717a;">미분류 지식이 없습니다.</p>';
+            lfList.innerHTML += folderMap[''].length > 0 ? folderMap[''].map(renderLoreItem).join('') : '<p style="font-size:0.85rem; color:var(--text-muted);">미분류 지식이 없습니다.</p>';
         }
 
         const r = Store.state.activeRoomId ? Store.getActiveRoom() : null;
@@ -341,7 +349,7 @@ window.UI = {
                             ${w.regions.map(reg=>`<option value="${reg.id}" ${loc.regionId===reg.id?'selected':''}>지역: ${this.esc(reg.name)}</option>`).join('')}
                         </select>
                         <textarea class="area-std auto-resize" id="loc-d-${loc.id}" placeholder="장소 특징" oninput="UI.autoResize(this);">${this.esc(loc.desc)}</textarea>
-                        ${r ? `<button class="btn-main" style="background:${r.currentLocIdx===realIdx?'#fbbf24':'#27272a'}; color:${r.currentLocIdx===realIdx?'#000':'#fff'};" onclick="Store.setLoc(${realIdx})">${r.currentLocIdx===realIdx?'📍 현재 위치로 설정':'여기로 이동'}</button>` : ''}
+                        ${r ? `<button class="btn-main" style="background:${r.currentLocIdx===realIdx?'#fbbf24':'var(--surface-3)'}; color:${r.currentLocIdx===realIdx?'#000':'var(--text-strong)'};" onclick="Store.setLoc(${realIdx})">${r.currentLocIdx===realIdx?'📍 현재 위치로 설정':'여기로 이동'}</button>` : ''}
                         <button class="btn-danger" onclick="Store.delWorldItem('loc','${loc.id}', event)">삭제</button>
                     </div>
                 </details>
@@ -352,19 +360,19 @@ window.UI = {
             regList.innerHTML = w.regions.map(reg => `
                 <details class="folder-box" id="det-reg-${reg.id}" data-sort-type="reg" data-sort-id="${reg.id}">
                     <summary class="folder-title">
-                        <h4 style="margin:0; color:#10b981;">${this.DRAG}🏔️ ${this.esc(reg.name) || '새 지역'}</h4>
+                        <h4 style="margin:0; color:var(--c-green);">${this.DRAG}🏔️ ${this.esc(reg.name) || '새 지역'}</h4>
                         <button class="mini-btn" onclick="Store.delWorldItem('reg','${reg.id}', event)">✖</button>
                     </summary>
                     <div style="margin-top:10px;">
                         <input type="text" class="input-std" id="reg-n-${reg.id}" value="${this.esc(reg.name)}" placeholder="지역명">
                         <textarea class="area-std auto-resize" id="reg-d-${reg.id}" placeholder="지역 특징" oninput="UI.autoResize(this);">${this.esc(reg.desc)}</textarea>
-                        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #3f3f46;">
+                        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
                             ${locMap[reg.id].map(loc=>renderLocItem(loc, w.locations.findIndex(x=>x.id===loc.id))).join('')}
                             <button class="btn-ghost" style="margin:0; padding:6px;" onclick="Store.addLocation('${reg.id}')">+ 📍 이 지역에 장소 추가</button>
                         </div>
                     </div>
                 </details>`).join('');
-            regList.innerHTML += locMap[''].length > 0 ? locMap[''].map(loc=>renderLocItem(loc, w.locations.findIndex(x=>x.id===loc.id))).join('') : '<p style="font-size:0.85rem; color:#71717a;">미분류 장소가 없습니다.</p>';
+            regList.innerHTML += locMap[''].length > 0 ? locMap[''].map(loc=>renderLocItem(loc, w.locations.findIndex(x=>x.id===loc.id))).join('') : '<p style="font-size:0.85rem; color:var(--text-muted);">미분류 장소가 없습니다.</p>';
         }
 
         const hasContent = w.name || w.prompt || w.factions.length > 0 || w.lores.length > 0 || w.locations.length > 0;
@@ -390,7 +398,7 @@ window.UI = {
         if(isMy) roleTag = '<span class="role-badge role-my">나의 캐릭터</span>'; 
         else if(isNpc) roleTag = '<span class="role-badge role-npc">주연 (항시 참여)</span>';
         const facNames = (c.factionIds || []).map(fid => w.factions.find(f => f.id === fid)?.name).filter(n => n);
-        const multi = facNames.length > 1 ? `<span style="font-size:0.72rem; color:#8e8e9c; margin-left:6px;">${facNames.map(n => this.esc(n)).join(' · ')}</span>` : '';
+        const multi = facNames.length > 1 ? `<span style="font-size:0.72rem; color:var(--text-muted); margin-left:6px;">${facNames.map(n => this.esc(n)).join(' · ')}</span>` : '';
         return `
         <details class="item-card card-char ${isMy?'my-char':''} ${isNpc?'active-npc':''} ${c.isHidden?'hidden':''}" id="det-c-${c.id}-${key}" data-cid="${c.id}" data-sort-type="c" data-sort-id="${c.id}" data-my="${isMy?1:0}" data-npc="${isNpc?1:0}" ontoggle="UI.onCharToggle(this)">
             <summary><div>${key === 'my' ? '' : this.DRAG}${this.esc(c.keyword) || '새 인물'} ${roleTag}${multi}</div></summary>
@@ -433,9 +441,9 @@ window.UI = {
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <div style="display:flex; gap:6px;">
                         ${r && !isMy ? `<button onclick="Store.setMyChar('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem;">🙋‍♂️ 내 캐릭터 지정</button>` : ''}
-                        ${r && !isMy ? `<button onclick="Store.toggleActiveNpc('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem; border-color:${isNpc?'#10b981':'#3f3f46'}; color:${isNpc?'#10b981':'#a1a1aa'};">${isNpc?'🗣️ 주연 해제':'🗣️ 주연 추가'}</button>` : ''}
+                        ${r && !isMy ? `<button onclick="Store.toggleActiveNpc('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem; border-color:${isNpc?'var(--c-green)':'var(--border-strong)'}; color:${isNpc?'var(--c-green)':'var(--text-muted)'};">${isNpc?'🗣️ 주연 해제':'🗣️ 주연 추가'}</button>` : ''}
                     </div>
-                    <label style="font-size:0.85rem; color:#a1a1aa; cursor:pointer;">
+                    <label style="font-size:0.85rem; color:var(--text-muted); cursor:pointer;">
                         <input type="checkbox" ${c.isHidden?'checked':''} onchange="Store.toggleHidden('${c.id}')"> 👁️ 숨김
                     </label>
                 </div>
@@ -443,7 +451,7 @@ window.UI = {
                 <input type="text" class="input-std" id="c-n-${c.id}" value="${this.esc(c.keyword)}" placeholder="이름" ${c.id==='sys'?'readonly':''}>
                 
                 ${c.id!=='sys' ? `
-                <div style="font-size:0.8rem; color:#9ca3af; margin-bottom:4px;">소속 세력:</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">소속 세력:</div>
                 <div id="c-f-tags-${c.id}" class="tag-area"></div>
                 <input type="hidden" id="c-f-hid-${c.id}" value="${c.factionIds.join(',')}">
                 <select class="select-std" style="margin-bottom:8px;" onchange="Store.addFacTag('${c.id}', this)">
@@ -489,7 +497,7 @@ window.UI = {
             return `
             <details class="folder-box fac-group" id="det-fg-${f.id}" data-sort-type="f" data-sort-id="${f.id}">
                 <summary class="folder-title">
-                    <h4 style="margin:0; color:#60a5fa;">${this.DRAG}🚩 ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
+                    <h4 style="margin:0; color:var(--c-blue);">${this.DRAG}🚩 ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
                     <button class="mini-btn" title="세력 삭제" onclick="Store.delWorldItem('f','${f.id}', event)">✖</button>
                 </summary>
                 <div style="margin-top:10px;">
@@ -509,7 +517,7 @@ window.UI = {
         const loners = others.filter(c => !(c.factionIds || []).some(fid => validF.has(fid)));
         const lonerGroup = `
             <details class="folder-box fac-group" id="det-fg-none">
-                <summary class="folder-title"><h4 style="margin:0; color:#a1a1aa;">👤 무소속 <span class="fac-count">${loners.length}</span></h4></summary>
+                <summary class="folder-title"><h4 style="margin:0; color:var(--text-muted);">👤 무소속 <span class="fac-count">${loners.length}</span></h4></summary>
                 <div style="margin-top:10px;">${loners.map(c => this.buildCharHTML(c, false, false, w, 'none')).join('') || empty}</div>
             </details>`;
         document.getElementById('char-other-area').innerHTML = groups + lonerGroup;
@@ -541,17 +549,17 @@ window.UI = {
         if(!wId) return list.innerHTML = ''; 
         const tr = Store.state.worlds.find(w=>w.id===wId); 
         list.innerHTML = tr.characters.filter(c=>c.id!=='sys').map(c => `
-            <div style="background:#18181b; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #27272a;">
+            <div style="background:var(--surface); padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color);">
                 <span style="font-weight:bold; font-size:0.95rem;">${this.esc(c.keyword)}</span>
-                <button class="btn-ghost" style="padding:6px 12px; margin:0; width:auto; border-color:#38bdf8; color:#38bdf8;" onclick="App.importChar('${wId}', '${c.id}')">가져오기</button>
+                <button class="btn-ghost" style="padding:6px 12px; margin:0; width:auto; border-color:var(--c-sky); color:var(--c-sky);" onclick="App.importChar('${wId}', '${c.id}')">가져오기</button>
             </div>`).join(''); 
     },
     openTagModal: function() { this.renderTagManageList(); this.openModal('tag-manage-modal'); },
     renderTagManageList: function() { 
         const list = document.getElementById('tag-manage-list'); 
-        if(Store.state.roomTags.length === 0) return list.innerHTML = '<p style="color:#a1a1aa; font-size:0.85rem;">생성된 태그가 없습니다.</p>'; 
+        if(Store.state.roomTags.length === 0) return list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">생성된 태그가 없습니다.</p>'; 
         list.innerHTML = Store.state.roomTags.map(t => `
-            <div style="background:#18181b; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; gap:8px; justify-content:space-between; align-items:center; border:1px solid #27272a;">
+            <div style="background:var(--surface); padding:12px; border-radius:8px; margin-bottom:10px; display:flex; gap:8px; justify-content:space-between; align-items:center; border:1px solid var(--border-color);">
                 <span title="${t.kind==='world'?'세계관 태그':'일반 태그'}">${t.kind==='world'?'🌌':'🏷️'}</span>
                 <input type="text" class="input-std" style="margin:0; flex:1; padding:8px;" value="${this.esc(t.name)}" onchange="App.updateRoomTag('${t.id}', this.value)">
                 <button class="btn-danger" style="margin:0; width:auto; padding:8px 14px;" onclick="App.deleteRoomTag('${t.id}')">삭제</button>
