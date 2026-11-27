@@ -7,12 +7,12 @@
     <meta name="theme-color" content="#0b0b0f">
     <!-- 저장된 테마를 화면이 그려지기 전에 적용한다 (잠깐 다른 색으로 깜빡이는 것 방지) -->
     <script>try { if(localStorage.getItem('10009sim-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch(e) {}</script>
-    <link rel="stylesheet" href="css/style.css?v=4.4">
+    <link rel="stylesheet" href="css/style.css?v=4.5">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <div id="global-ai-loader">
-        <div class="sparkle-icon">✨</div>
+        <div class="sparkle-icon"><i data-ic="sparkles"></i></div>
         <div id="loader-msg">마법 연성 대기 중</div>
     </div>
 
@@ -24,28 +24,28 @@
         <div class="lobby-header">
             <h1>10009 시뮬레이터</h1>
             <div class="lobby-tabs">
-                <div class="lobby-tab active" onclick="UI.switchTab('tab-scenarios', event)">🎬 시나리오</div>
-                <div class="lobby-tab" onclick="UI.switchTab('tab-worlds', event)">🌌 템플릿</div>
-                <div class="lobby-tab" onclick="UI.switchTab('tab-settings', event)">⚙️ 설정</div>
+                <div class="lobby-tab active" onclick="UI.switchTab('tab-scenarios', event)">시나리오</div>
+                <div class="lobby-tab" onclick="UI.switchTab('tab-worlds', event)">템플릿</div>
+                <div class="lobby-tab" onclick="UI.switchTab('tab-settings', event)">설정</div>
             </div>
         </div>
 
         <div id="tab-scenarios" class="lobby-content active">
             <div class="lobby-toolbar">
                 <button class="btn-play" onclick="UI.openNewRoomModal()">+ 새 시나리오 시작</button>
-                <button class="btn-icon" onclick="UI.openTagModal()" title="태그 관리">🏷️</button>
+                <button class="btn-icon" onclick="UI.openTagModal()" title="태그 관리"><i data-ic="tag"></i></button>
             </div>
             <select id="lobby-room-filter" class="input-std" onchange="UI.renderScenarioList()"></select>
             <div id="scenario-list"></div>
         </div>
 
         <div id="tab-worlds" class="lobby-content">
-            <button class="btn-play btn-world" style="margin-bottom:20px;" onclick="Store.createNewWorldTemplate()">+ 🌌 새 템플릿 창조</button>
+            <button class="btn-play btn-world" style="margin-bottom:20px;" onclick="Store.createNewWorldTemplate()">+ 새 템플릿 창조</button>
             <div id="world-template-list"></div>
         </div>
 
         <div id="tab-settings" class="lobby-content">
-            <h3>🔑 AI 연결 설정</h3>
+            <h3><i data-ic="key-round"></i> AI 연결 설정</h3>
             <select id="set-provider" class="select-std" onchange="Store.changeProvider(this.value)"></select>
             <input type="password" id="set-api-key" class="input-std" placeholder="API Key" onchange="Store.saveSettings()">
             <input type="text" id="set-base-url" class="input-std" placeholder="Base URL (예: https://openrouter.ai/api/v1)" style="display:none;" onchange="Store.saveSettings()">
@@ -53,7 +53,7 @@
             <input type="text" id="set-model-name" class="input-std" placeholder="모델명 직접 입력" onchange="Store.saveSettings()">
             <p id="provider-hint" class="hint"></p>
             <div id="claude-cache-box" style="display:none;">
-                <div class="field-label">💾 Claude 캐시 유지 시간</div>
+                <div class="field-label">Claude 캐시 유지 시간</div>
                 <select id="set-claude-cache" class="select-std" onchange="Store.saveSettings()">
                     <option value="1h">1시간 (턴 사이가 5분을 자주 넘으면 유리)</option>
                     <option value="5m">5분 (5분 안에 계속 주고받으면 유리)</option>
@@ -61,17 +61,17 @@
                 </select>
                 <p class="hint">* 앞 턴과 같은 부분을 다시 보낼 때 요금을 깎아주는 기능입니다. 유지 시간 안에 다음 턴을 보내야 적용됩니다.</p>
             </div>
-            <div class="field-label">📏 응답 분량 (글자 수)</div>
+            <div class="field-label">응답 분량 (글자 수)</div>
             <input type="number" id="set-reply-length" class="input-std" min="200" max="10000" step="100" onchange="Store.saveSettings()">
             <p class="hint">* AI 응답 한 번의 목표 길이입니다. "N자 내외"로 지시하며, 문단 수는 길이에 맞춰 자동으로 정해집니다. 모든 시나리오에 공통입니다.</p>
-            <div class="field-label">🧠 기억할 최근 메시지 수</div>
+            <div class="field-label">기억할 최근 메시지 수</div>
             <input type="number" id="set-history-limit" class="input-std" min="5" max="200" step="1" onchange="Store.saveSettings()">
             <p class="hint">* 매 턴 AI에게 보내는 최근 대화의 최소 개수입니다(내 메시지와 AI 응답 각각 1개). 캐시가 잘 맞도록 10개 단위로 잘라 보내서, 실제로는 이 값 ~ 이 값+9개 사이가 전달됩니다. 그보다 오래된 내용은 자동 요약으로 전달됩니다.</p>
 
             <hr style="border-color:var(--border-color); margin:20px 0;">
 
             <details class="acc-sec">
-                <summary style="color:var(--c-violet);">📜 전체 서술 지침</summary>
+                <summary style="color:var(--c-violet);"><i data-ic="scroll-text"></i> 전체 서술 지침</summary>
                 <div class="acc-body">
                     <p class="hint">
                         모든 시나리오의 AI 서술에 공통으로 들어가는 규칙입니다.<br>
@@ -79,13 +79,13 @@
                         * 서술 톤, 분량, 안전 설정은 각 버튼/설정에 따라 따로 추가됩니다.
                     </p>
                     <textarea id="set-global-rules" class="area-std" style="min-height:320px; font-size:0.88rem;" onchange="Store.saveGlobalRules()"></textarea>
-                    <button class="btn-ghost" onclick="Store.resetGlobalRules()">↺ 기본 지침으로 되돌리기</button>
+                    <button class="btn-ghost" onclick="Store.resetGlobalRules()">기본 지침으로 되돌리기</button>
                 </div>
             </details>
 
             <hr style="border-color:var(--border-color); margin:20px 0;">
             
-            <h3 style="color:var(--c-sky);">🎨 화면</h3>
+            <h3 style="color:var(--c-sky);"><i data-ic="palette"></i> 화면</h3>
             <div class="field-label">화면 테마</div>
             <select id="set-theme" class="select-std" onchange="Store.setTheme(this.value)">
                 <option value="dark">다크</option>
@@ -97,7 +97,7 @@
             <hr style="border-color:var(--border-color); margin:20px 0;">
             
             <details class="acc-sec">
-                <summary style="color:var(--c-red);">🛡️ 안전 설정 (검열)</summary>
+                <summary style="color:var(--c-red);"><i data-ic="shield"></i> 안전 설정 (검열)</summary>
                 <div class="acc-body">
                     <p class="hint">
                         * 체크한 대상에 대해 해당 묘사를 <b>금지</b>합니다. 모든 시나리오에 공통으로 적용됩니다.<br>
@@ -108,34 +108,34 @@
             </details>
 
             <hr style="border-color:var(--border-color); margin:20px 0;">
-            <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong);" onclick="Store.exportData()">⬇️ 전체 백업</button>
-            <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong); margin-top:10px;" onclick="document.getElementById('import-file').click()">⬆️ 데이터 복원</button>
+            <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong);" onclick="Store.exportData()">전체 백업</button>
+            <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong); margin-top:10px;" onclick="document.getElementById('import-file').click()">데이터 복원</button>
             <input type="file" id="import-file" style="display:none;" onchange="Store.importData(event)">
 
             <hr style="border-color:var(--border-color); margin:20px 0;">
-            <h3 style="color:var(--c-amber);">🔄 시스템 관리</h3>
-            <button class="btn-ghost" style="border-color:var(--c-amber); color:var(--c-amber); margin-bottom:0;" onclick="App.hardResetApp()">🚀 최신 버전으로 강제 업데이트 (캐시 삭제)</button>
+            <h3 style="color:var(--c-amber);"><i data-ic="refresh-cw"></i> 시스템 관리</h3>
+            <button class="btn-ghost" style="border-color:var(--c-amber); color:var(--c-amber); margin-bottom:0;" onclick="App.hardResetApp()">최신 버전으로 강제 업데이트 (캐시 삭제)</button>
             <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">* 화면이 이상하거나 업데이트가 반영되지 않을 때 누르세요. (데이터는 안전합니다!)</p>
         </div>
     </div>
 
     <div id="game-container">
         <header>
-            <button class="btn-to-lobby" onclick="App.exitToLobby()">🏠 로비</button>
+            <button class="btn-to-lobby" onclick="App.exitToLobby()"><i data-ic="chevron-left"></i>로비</button>
             <div class="header-names">
                 <span id="header-npc-names" onclick="UI.togglePanel('char-panel')">NPC들</span>
                 <span style="font-size:0.7rem; color:var(--text-muted);">vs</span>
                 <span id="header-user-name" onclick="UI.togglePanel('char-panel')">USER</span>
             </div>
             <div class="header-btns">
-                <button onclick="Store.exportChatToTxt()">💾</button>
-                <button onclick="UI.togglePanel('world-panel')">🗺️</button>
-                <button onclick="UI.togglePanel('char-panel')" title="세력">👥</button>
-                <button onclick="UI.togglePanel('sys-panel')">🖥️</button>
+                <button onclick="Store.exportChatToTxt()" title="대화 내보내기"><i data-ic="file-down"></i></button>
+                <button onclick="UI.togglePanel('world-panel')" title="세계관"><i data-ic="map"></i></button>
+                <button onclick="UI.togglePanel('char-panel')" title="세력"><i data-ic="users"></i></button>
+                <button onclick="UI.togglePanel('sys-panel')" title="시스템 보드"><i data-ic="monitor"></i></button>
             </div>
         </header>
         <div class="sub-header" onclick="UI.togglePanel('world-panel')">
-            <span id="header-loc-name">🧭 위치 미정</span>
+            <span id="header-loc-name"><i data-ic="compass"></i> 위치 미정</span>
         </div>
 
         <div id="chat-container"></div>
@@ -143,7 +143,7 @@
         <div class="input-dock">
             <div id="input-area">
                 <textarea id="msg-input" placeholder="대화를 입력하세요." oninput="UI.autoResize(this)" onkeydown="App.handleInputKey(event)"></textarea>
-                <button id="action-btn" onclick="App.handleAction()">▶ 전송</button>
+                <button id="action-btn" onclick="App.handleAction()">전송</button>
             </div>
         </div>
     </div>
@@ -151,21 +151,21 @@
     <div id="world-panel" class="panel">
         <div class="sticky-header">
             <div class="panel-title-row">
-                <h2 id="world-panel-title">🗺️ 세계관 설정</h2>
-                <button type="button" class="close-btn-new" onclick="UI.forceClosePanel()">✕</button>
+                <h2 id="world-panel-title"><i data-ic="map"></i> 세계관 설정</h2>
+                <button type="button" class="close-btn-new" onclick="UI.forceClosePanel()"><i data-ic="x"></i></button>
             </div>
             <div style="display:flex; gap:10px; margin-top:15px;">
-                <button class="btn-main btn-solid" style="background:#16a34a; margin-bottom:0; flex:1;" onclick="Store.saveWorld()">💾 변경사항 저장</button>
-                <button id="magic-btn" class="btn-main btn-solid" style="background:#6366f1; margin-bottom:0; width:50px; opacity:0.3; transition:all 0.3s ease;" onclick="App.runMagicGenerator()" disabled title="자동 연성">🪄</button>
+                <button class="btn-main btn-solid" style="background:#16a34a; margin-bottom:0; flex:1;" onclick="Store.saveWorld()">변경사항 저장</button>
+                <button id="magic-btn" class="btn-main btn-solid" style="background:#6366f1; margin-bottom:0; width:50px; opacity:0.3; transition:all 0.3s ease;" onclick="App.runMagicGenerator()" disabled title="자동 연성"><i data-ic="wand-sparkles"></i></button>
             </div>
         </div>
         
-        <button id="btn-free-roam" class="btn-ghost" style="margin-bottom:15px;" onclick="Store.setLoc(-1)">📍 문맥에 맡기기 (현재 미분류)</button>
+        <button id="btn-free-roam" class="btn-ghost" style="margin-bottom:15px;" onclick="Store.setLoc(-1)">문맥에 맡기기 (현재 미분류)</button>
         
         <details class="acc-sec" open id="det-basic-settings">
-            <summary style="color:var(--c-sky);">🌌 기본 설정</summary>
+            <summary style="color:var(--c-sky);"><i data-ic="globe"></i> 기본 설정</summary>
             <div style="margin-top:10px;">
-                <div class="field-label">🔑 키워드 <span>(AI 생성의 재료, 최대 10개)</span></div>
+                <div class="field-label">키워드 <span>(AI 생성의 재료, 최대 10개)</span></div>
                 <div id="w-keyword-list" class="keyword-area"></div>
                 <div style="display:flex; gap:8px; margin-bottom:10px;">
                     <input type="text" id="w-k-input" class="input-std" style="margin:0;" placeholder="예: 학교, 괴담, 회귀" oninput="App.handleKeywordInput(event)" onkeydown="if(event.key==='Enter' && !event.isComposing) { event.preventDefault(); App.commitKeywordInput(); }" onblur="App.commitKeywordInput()">
@@ -176,114 +176,115 @@
                 <hr style="border-color:var(--border-color); margin:15px 0;">
                 <input type="text" class="input-std" id="w-n" placeholder="세계관 이름">
                 <textarea class="area-std auto-resize" id="w-d" placeholder="프롬프트/배경" oninput="UI.autoResize(this);"></textarea>
-                <div class="field-label" style="margin-top:6px;">📜 세계관 전용 지침 <span>(이 세계관에서만 매 턴 그대로 전달)</span></div>
+                <div class="field-label" style="margin-top:6px;">세계관 전용 지침 <span>(이 세계관에서만 매 턴 그대로 전달)</span></div>
                 <textarea class="area-std auto-resize" id="w-rules" placeholder="비밀 정보, 미정 사항 등 이 세계관에서만 지킬 규칙" oninput="UI.autoResize(this);"></textarea>
                 <input type="text" class="input-std" id="w-url" placeholder="배경 이미지 URL">
             </div>
         </details>
         
         <details class="acc-sec" id="det-net-rules">
-            <summary style="color:var(--c-red);">📡 정보망 지침</summary>
+            <summary style="color:var(--c-red);"><i data-ic="radio-tower"></i> 정보망 지침</summary>
             <div class="acc-body">
                 <p class="hint">* 이 세계관의 커뮤니티, 다크웹, 수신함에만 적용되는 내용입니다. (말머리 목록, 작성자 표기, 사이트 이름, 단골 소재 등)<br>* 공통 형식(글 개수, 수치 기준, 댓글 형식)은 앱이 따로 넣습니다. 비밀 정보는 적지 마세요.</p>
-                <div class="field-label">💬 커뮤니티</div>
+                <div class="field-label">커뮤니티</div>
                 <textarea class="area-std auto-resize" id="w-net-community" oninput="UI.autoResize(this);"></textarea>
-                <div class="field-label">🧱 다크웹</div>
+                <div class="field-label">다크웹</div>
                 <textarea class="area-std auto-resize" id="w-net-darkweb" oninput="UI.autoResize(this);"></textarea>
-                <div class="field-label">📨 수신함</div>
+                <div class="field-label">수신함</div>
                 <textarea class="area-std auto-resize" id="w-net-inbox" oninput="UI.autoResize(this);"></textarea>
-                <button class="btn-ghost" onclick="UI.fillHunterNetExample()">🏹 헌터 세계관 예시 넣기</button>
+                <button class="btn-ghost" onclick="UI.fillHunterNetExample()">헌터 세계관 예시 넣기</button>
             </div>
         </details>
         <details class="acc-sec">
-            <summary style="color:var(--c-lime);">📚 지식 및 설정 (분류)</summary>
+            <summary style="color:var(--c-lime);"><i data-ic="book-open"></i> 지식 및 설정 (분류)</summary>
             <div id="world-lore-folders-list" style="margin-top:10px;"></div>
-            <button class="btn-ghost" onclick="Store.addLoreFolder()">+ 📁 새 분류(폴더) 추가</button>
+            <button class="btn-ghost" onclick="Store.addLoreFolder()">+ 새 분류(폴더) 추가</button>
         </details>
         <details class="acc-sec">
-            <summary style="color:var(--c-green);">🗺️ 지역 및 상세 장소</summary>
+            <summary style="color:var(--c-green);"><i data-ic="map"></i> 지역 및 상세 장소</summary>
             <div id="world-regions-list" style="margin-top:10px;"></div>
-            <button class="btn-ghost" onclick="Store.addRegion()">+ 🏔️ 새 지역(대분류) 추가</button>
+            <button class="btn-ghost" onclick="Store.addRegion()">+ 새 지역(대분류) 추가</button>
         </details>
 
         <div style="margin-top:20px; border-top:1px dashed var(--border-color); padding-top:20px;">
-            <button id="btn-world-sketch" class="btn-play btn-solid" style="background:#8b5cf6; color:#fff;" onclick="App.runWorldSketch()">✨ 세계관 초안 스케치</button>
-            <p style="font-size:0.75rem; color:var(--text-muted); text-align:center; line-height:1.4;">* 등록된 키워드를 바탕으로 세계관의 뼈대를 일괄 생성합니다.<br>* 빈 칸에 커서를 두고 🪄 버튼을 누르면 AI가 세부 내용을 채워줍니다.</p>
+            <button id="btn-world-sketch" class="btn-play btn-solid" style="background:#8b5cf6; color:#fff;" onclick="App.runWorldSketch()">세계관 초안 스케치</button>
+            <p style="font-size:0.75rem; color:var(--text-muted); text-align:center; line-height:1.4;">* 등록된 키워드를 바탕으로 세계관의 뼈대를 일괄 생성합니다.<br>* 빈 칸에 커서를 두고 <i data-ic="wand-sparkles"></i> 버튼을 누르면 AI가 세부 내용을 채워줍니다.</p>
         </div>
     </div>
 
     <div id="char-panel" class="panel">
         <div class="sticky-header">
             <div class="panel-title-row">
-                <h2>👥 세력</h2>
-                <button type="button" class="close-btn-new" onclick="UI.forceClosePanel()">✕</button>
+                <h2><i data-ic="users"></i> 세력</h2>
+                <button type="button" class="close-btn-new" onclick="UI.forceClosePanel()"><i data-ic="x"></i></button>
             </div>
             <div style="display:flex; gap:10px; margin-top:15px;">
-                <button class="btn-main btn-solid" style="background:#16a34a; margin-bottom:0; flex:1;" onclick="Store.saveCharacters()">💾 일괄 저장</button>
-                <button id="magic-btn-char" class="btn-main btn-solid" style="background:#6366f1; margin-bottom:0; width:50px; opacity:0.3; transition:all 0.3s ease;" onclick="App.runMagicGenerator()" disabled title="빈 칸에 커서를 두고 누르면 AI가 채워줍니다">🪄</button>
+                <button class="btn-main btn-solid" style="background:#16a34a; margin-bottom:0; flex:1;" onclick="Store.saveCharacters()">일괄 저장</button>
+                <button id="magic-btn-char" class="btn-main btn-solid" style="background:#6366f1; margin-bottom:0; width:50px; opacity:0.3; transition:all 0.3s ease;" onclick="App.runMagicGenerator()" disabled title="빈 칸에 커서를 두고 누르면 AI가 채워줍니다"><i data-ic="wand-sparkles"></i></button>
             </div>
         </div>
         
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
-            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; font-size:0.9rem;" onclick="Store.addCharacter()">➕ 새 인물</button>
-            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; font-size:0.9rem; border-color:var(--c-blue); color:var(--c-blue);" onclick="Store.addFaction()">🚩 새 세력</button>
-            <button type="button" id="magic-char-btn" class="btn-main btn-solid" style="margin:0; padding:12px 4px; background:#6366f1; font-size:0.9rem;" onclick="App.runCharGenerator()" title="AI 자동 생성">🪄 AI 인물 연성</button>
-            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; border-color:var(--c-sky); color:var(--c-sky); font-size:0.9rem;" onclick="UI.openImportModal()">📥 가져오기</button>
+            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; font-size:0.9rem;" onclick="Store.addCharacter()">새 인물</button>
+            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; font-size:0.9rem; border-color:var(--c-blue); color:var(--c-blue);" onclick="Store.addFaction()">새 세력</button>
+            <button type="button" id="magic-char-btn" class="btn-main btn-solid" style="margin:0; padding:12px 4px; background:#6366f1; font-size:0.9rem;" onclick="App.runCharGenerator()" title="AI 자동 생성">AI 인물 연성</button>
+            <button type="button" class="btn-ghost" style="margin:0; padding:12px 4px; border-color:var(--c-sky); color:var(--c-sky); font-size:0.9rem;" onclick="UI.openImportModal()">가져오기</button>
         </div>
-        <p class="hint" style="margin-bottom:20px;">* 인물의 [소속 세력]에서 세력을 추가하면 그 세력 묶음으로 옮겨집니다.<br>* 빈 칸에 커서를 두고 위의 🪄 버튼을 누르면 AI가 내용을 채워줍니다.</p>
+        <p class="hint" style="margin-bottom:20px;">* 인물의 [소속 세력]에서 세력을 추가하면 그 세력 묶음으로 옮겨집니다.<br>* 빈 칸에 커서를 두고 위의 <i data-ic="wand-sparkles"></i> 버튼을 누르면 AI가 내용을 채워줍니다.</p>
         
-        <h3 id="h3-my-char" class="char-sec-title" style="color:var(--c-sky);">🙋‍♂️ 내 캐릭터</h3>
+        <h3 id="h3-my-char" class="char-sec-title" style="color:var(--c-sky);"><i data-ic="user"></i> 내 캐릭터</h3>
         <div id="char-my-area" style="margin-bottom:30px;"></div>
         
-        <h3 id="h3-active-npc" class="char-sec-title" style="color:var(--c-green);">🗣️ 참여 중인 주연</h3>
+        <h3 id="h3-active-npc" class="char-sec-title" style="color:var(--c-green);"><i data-ic="drama"></i> 참여 중인 주연</h3>
         <div id="char-active-area" style="margin-bottom:30px;"></div>
         
-        <h3 id="h3-other-char" class="char-sec-title" style="color:var(--c-blue);">🚩 세력별 인물</h3>
+        <h3 id="h3-other-char" class="char-sec-title" style="color:var(--c-blue);"><i data-ic="flag"></i> 세력별 인물</h3>
         <div id="char-other-area" style="margin-bottom:30px;"></div>
     </div>
 
     <div id="sys-panel" class="panel">
         <div class="sticky-header">
             <div class="panel-title-row">
-                <h2>🖥️ 시스템 보드</h2>
-                <button type="button" class="close-btn-new" onclick="UI.forceClosePanel()">✕</button>
+                <h2><i data-ic="monitor"></i> 시스템 보드</h2>
+                <button type="button" class="close-btn-new" onclick="UI.forceClosePanel()"><i data-ic="x"></i></button>
             </div>
         </div>
         
-        <h3 style="color:var(--c-red); margin-top:10px;">⚠️ 현재 세계 상태</h3>
+        <h3 style="color:var(--c-red); margin-top:10px;"><i data-ic="triangle-alert"></i> 현재 세계 상태</h3>
         <textarea id="global-status-input" class="area-std auto-resize" placeholder="서사의 절대 규칙이나 현재 디버프 상태 등을 적어두세요." oninput="UI.autoResize(this); Store.updateRoomState('globalStatus', this.value);"></textarea>
         
-        <h3 style="color:var(--c-violet); margin-top:20px;">📝 상황 요약</h3>
+        <h3 style="color:var(--c-violet); margin-top:20px;"><i data-ic="notebook-pen"></i> 상황 요약</h3>
         <textarea id="room-memory-input" class="area-std auto-resize" style="min-height:150px;" oninput="UI.autoResize(this); Store.updateRoomState('memory', this.value);"></textarea>
         <button class="btn-main" style="margin-top:8px;" onclick="Store.saveRoomMemory()">기억 수동 저장</button>
 
         <hr style="border-color:var(--border-color); margin:25px 0;">
 
-        <h3 style="color:var(--c-red);">📡 정보망</h3>
+        <h3 style="color:var(--c-red);"><i data-ic="radio-tower"></i> 정보망</h3>
         <div class="net-tabs">
-            <button class="net-tab" data-tab="inbox" onclick="Net.setTab('inbox')">📨 수신함</button>
-            <button class="net-tab" data-tab="community" onclick="Net.setTab('community')">💬 커뮤니티</button>
-            <button class="net-tab" data-tab="darkweb" onclick="Net.setTab('darkweb')">🧱 다크웹</button>
+            <button class="net-tab" data-tab="inbox" onclick="Net.setTab('inbox')">수신함</button>
+            <button class="net-tab" data-tab="community" onclick="Net.setTab('community')">커뮤니티</button>
+            <button class="net-tab" data-tab="darkweb" onclick="Net.setTab('darkweb')">다크웹</button>
         </div>
         <div id="net-view"></div>
 
         <hr style="border-color:var(--border-color); margin:25px 0;">
 
-        <h3 style="color:var(--c-amber);">🎣 떡밥 및 과거사 회수</h3>
-        <button class="btn-main btn-solid" style="background:#ea580c; margin-top:10px;" onclick="App.recoverBait()">🎣 다음 턴에 떡밥 회수 발동</button>
+        <h3 style="color:var(--c-amber);"><i data-ic="fish"></i> 떡밥 및 과거사 회수</h3>
+        <button class="btn-main btn-solid" style="background:#ea580c; margin-top:10px;" onclick="App.recoverBait()">다음 턴에 떡밥 회수 발동</button>
         <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:15px; line-height:1.4;">* 누르면 다음 생성 시 1회에 한하여 전체 과거사/로어(Lore) 데이터가 컨텍스트에 주입되어, 묻혀있던 설정이 현재 대화에 자연스럽게 엮입니다.</p>
     </div>
 
-    <div id="new-room-modal" class="modal-base"><div class="modal-header"><h3>🎭 새 시나리오</h3><button class="close-btn-new" onclick="UI.closeModal('new-room-modal')">✕</button></div><select id="new-room-world-sel" class="select-std"></select><input type="text" id="new-room-name" class="input-std" placeholder="제목"><button class="btn-play" onclick="App.createNewRoom()">생성</button></div>
-    <div id="edit-room-modal" class="modal-base"><div class="modal-header"><h3>✏️ 수정</h3><button class="close-btn-new" onclick="UI.closeModal('edit-room-modal')">✕</button></div><input type="hidden" id="edit-room-id"><input type="text" id="edit-room-name" class="input-std"><button class="btn-main" style="margin-top:10px;" onclick="App.saveRoomInfo()">저장</button></div>
-    <div id="import-modal" class="modal-base"><div class="modal-header"><h3>📥 인물 불러오기</h3><button class="close-btn-new" onclick="UI.closeModal('import-modal')">✕</button></div><select id="import-world-sel" class="select-std" onchange="UI.renderImportChars()"></select><div id="import-char-list" style="margin-top:10px; max-height:200px; overflow-y:auto;"></div></div>
-    <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3>🏷️ 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')">✕</button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 🌌 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
+    <div id="new-room-modal" class="modal-base"><div class="modal-header"><h3><i data-ic="drama"></i> 새 시나리오</h3><button class="close-btn-new" onclick="UI.closeModal('new-room-modal')"><i data-ic="x"></i></button></div><select id="new-room-world-sel" class="select-std"></select><input type="text" id="new-room-name" class="input-std" placeholder="제목"><button class="btn-play" onclick="App.createNewRoom()">생성</button></div>
+    <div id="edit-room-modal" class="modal-base"><div class="modal-header"><h3><i data-ic="pencil"></i> 수정</h3><button class="close-btn-new" onclick="UI.closeModal('edit-room-modal')"><i data-ic="x"></i></button></div><input type="hidden" id="edit-room-id"><input type="text" id="edit-room-name" class="input-std"><button class="btn-main" style="margin-top:10px;" onclick="App.saveRoomInfo()">저장</button></div>
+    <div id="import-modal" class="modal-base"><div class="modal-header"><h3><i data-ic="file-down"></i> 인물 불러오기</h3><button class="close-btn-new" onclick="UI.closeModal('import-modal')"><i data-ic="x"></i></button></div><select id="import-world-sel" class="select-std" onchange="UI.renderImportChars()"></select><div id="import-char-list" style="margin-top:10px; max-height:200px; overflow-y:auto;"></div></div>
+    <div id="tag-manage-modal" class="modal-base"><div class="modal-header"><h3><i data-ic="tag"></i> 태그 관리</h3><button class="close-btn-new" onclick="UI.closeModal('tag-manage-modal')"><i data-ic="x"></i></button></div><p class="hint">* 태그를 만든 뒤, 시나리오 카드의 <b>[+ 태그]</b>에서 붙일 수 있습니다.<br>* 세계관 태그는 새 시나리오를 만들 때 자동으로 붙습니다.</p><div style="display:flex; gap:8px; margin-bottom:12px;"><input type="text" id="new-tag-name" class="input-std" style="margin:0;" placeholder="새 태그 이름" onkeydown="if(event.key==='Enter') App.createRoomTagFromInput()"><button class="btn-play" style="margin:0; width:auto; padding:0 16px;" onclick="App.createRoomTagFromInput()">추가</button></div><div id="tag-manage-list" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div></div>
 
     <!-- 파일을 수정하면 ?v= 숫자를 올려야 브라우저가 예전 파일을 재사용하지 않는다 -->
-    <script src="js/store.js?v=4.4"></script>
-    <script src="js/api.js?v=4.4"></script>
-    <script src="js/net.js?v=4.4"></script>
-    <script src="js/ui.js?v=4.4"></script>
-    <script src="js/app.js?v=4.4"></script>
+    <script src="js/icons.js?v=4.5"></script>
+    <script src="js/store.js?v=4.5"></script>
+    <script src="js/api.js?v=4.5"></script>
+    <script src="js/net.js?v=4.5"></script>
+    <script src="js/ui.js?v=4.5"></script>
+    <script src="js/app.js?v=4.5"></script>
 </body>
 </html>

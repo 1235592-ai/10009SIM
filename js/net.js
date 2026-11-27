@@ -10,7 +10,7 @@ window.Net = {
 
     // ---------- 출력 규칙 ----------
     // 여기 있는 건 모든 세계관 공통 규칙이다. 말머리, 사이트 이름, 단골 소재 같은 세계관별 내용은
-    // 템플릿의 "📡 정보망 지침" 칸(w.netRules)에서 받는다.
+    // 템플릿의 "정보망 지침" 칸(w.netRules)에서 받는다.
     COMMON_RULES: `- 너는 이야기 밖의 화면 생성기다. 인사, 설명, 사담 없이 지정된 JSON 객체만 반환한다.
 - 공개된 정보만 반영한다. 비공개 사정, 숨긴 능력, 조직 내부 사정, 비밀은 추측이나 루머 형태로만 나온다.
 - 세계의 시간은 최근 진행과 상황 요약을 따른다. 현실 시각을 쓰지 않는다. 목록의 작성 시간은 "3시간 전", "어제"처럼 상대 표기로 쓴다.
@@ -286,12 +286,12 @@ window.Net = {
     renderBoard: function(r, board) {
         const st = this.state(r)[board]; const s = this.search[board];
         const posts = s ? s.posts : st.posts;
-        const head = board === 'community' ? '💬 커뮤니티' : '🧱 Bystreet · 광장';
+        const head = board === 'community' ? IC('message-square') + ' 커뮤니티' : IC('eye-off') + ' Bystreet · 광장';
         const dis = this.busy ? 'disabled' : '';
         let html = `<div class="net-title">${head}</div>
-            <div class="net-search"><input id="net-search-input" class="input-std" placeholder="키워드나 문장으로 검색" value="${s ? this.esc(s.query) : ''}" onkeydown="if(event.key==='Enter' && !event.isComposing) Net.searchBoard('${board}')"><button class="btn-main" ${dis} onclick="Net.searchBoard('${board}')">🔍</button></div>
-            <div class="net-bar"><span>${s ? `검색: ${this.esc(s.query)}` : (board === 'community' ? '실시간 인기글' : '광장 화제글')}</span><button class="btn-ghost" ${dis} onclick="Net.refreshBoard('${board}')">🔄 ${s ? '인기글로' : '새로고침'}</button></div>${this.loading()}`;
-        if(!posts.length) return html + `<p class="hint">🔄 새로고침을 눌러 글을 불러오세요.</p>`;
+            <div class="net-search"><input id="net-search-input" class="input-std" placeholder="키워드나 문장으로 검색" value="${s ? this.esc(s.query) : ''}" onkeydown="if(event.key==='Enter' && !event.isComposing) Net.searchBoard('${board}')"><button class="btn-main" ${dis} title="검색" onclick="Net.searchBoard('${board}')">${IC('search')}</button></div>
+            <div class="net-bar"><span>${s ? `검색: ${this.esc(s.query)}` : (board === 'community' ? '실시간 인기글' : '광장 화제글')}</span><button class="btn-ghost" ${dis} onclick="Net.refreshBoard('${board}')">${IC('refresh-cw')} ${s ? '인기글로' : '새로고침'}</button></div>${this.loading()}`;
+        if(!posts.length) return html + `<p class="hint">새로고침을 눌러 글을 불러오세요.</p>`;
         html += posts.map(p => {
             const open = this.openId === p.id;
             const tag = board === 'community' ? `<b>[${this.esc(p.tag)}]</b>${p.popular ? ' <b>[인기글]</b>' : ''} ` : '<b>[광장]</b> ';
@@ -300,7 +300,7 @@ window.Net = {
                 body = `<div class="net-body">${this.para(p.detail.body)}</div>
                     <div class="net-divider">──── 댓글 ${Number(p.comments) || p.detail.comments.length} ────</div>
                     <ul class="net-comments">${p.detail.comments.map(c => `<li><b>${this.author(c.author, c.grade)}:</b> ${this.esc(c.text)} ${this.votes(c.up, c.down)}${(c.replies && c.replies.length) ? `<ul>${c.replies.map(rp => `<li>↳ <b>${this.author(rp.author, rp.grade)}:</b> ${this.esc(rp.text)} ${this.votes(rp.up, rp.down)}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ul>
-                    <button class="btn-main" style="margin-top:10px;" ${p.shared ? 'disabled' : ''} onclick="Net.sharePost('${board}','${p.id}')">${p.shared ? '✅ 채팅에 공유됨' : '📤 채팅에 공유'}</button>`;
+                    <button class="btn-main" style="margin-top:10px;" ${p.shared ? 'disabled' : ''} onclick="Net.sharePost('${board}','${p.id}')">${p.shared ? '채팅에 공유됨' : '채팅에 공유'}</button>`;
             }
             return `<div class="net-card ${open ? 'open' : ''}">
                 <div class="net-card-head" onclick="Net.openPost('${board}','${p.id}')">
@@ -314,15 +314,15 @@ window.Net = {
     renderInbox: function(r) {
         const st = this.state(r).inbox; const dis = this.busy ? 'disabled' : '';
         const kinds = [['official', '공문'], ['message', '메시지'], ['alert', '알림']];
-        let html = `<div class="net-title">📨 수신함</div>
-            <div class="net-bar">${st.account ? `<code>${this.esc(st.account)}</code>` : '<span></span>'}<span style="display:flex; gap:6px;"><button class="btn-ghost" ${dis} onclick="Net.startCompose()">✉️ 새 메시지</button><button class="btn-ghost" ${dis} onclick="Net.refreshInbox()">🔄</button></span></div>${this.loading()}`;
+        let html = `<div class="net-title">${IC('mail')} 수신함</div>
+            <div class="net-bar">${st.account ? `<code>${this.esc(st.account)}</code>` : '<span></span>'}<span style="display:flex; gap:6px;"><button class="btn-ghost" ${dis} onclick="Net.startCompose()">새 메시지</button><button class="btn-ghost" ${dis} title="새로고침" onclick="Net.refreshInbox()">${IC('refresh-cw')}</button></span></div>${this.loading()}`;
         if(this.openId === '__compose') {
             const names = r.worldInstance.characters.filter(c => c.id !== 'sys' && c.id !== r.myCharId && c.keyword).map(c => `<option value="${this.esc(c.keyword)}">`).join('');
-            html += `<div class="net-card open"><div class="net-card-title">✉️ 새 메시지</div>
+            html += `<div class="net-card open"><div class="net-card-title">새 메시지</div>
                 <input id="net-compose-to" class="input-std" list="net-compose-names" placeholder="받는 사람 이름"><datalist id="net-compose-names">${names}</datalist>
                 ${this.replyBox('__compose')}</div>`;
         }
-        if(!st.items.length) return html + `<p class="hint">🔄 버튼을 눌러 수신함을 불러오세요.</p>`;
+        if(!st.items.length) return html + `<p class="hint">새로고침 버튼을 눌러 수신함을 불러오세요.</p>`;
         kinds.forEach(([k, label]) => {
             const items = st.items.filter(i => i.kind === k).sort((a, b) => (a.read === b.read) ? 0 : (a.read ? 1 : -1));
             if(!items.length) return;
@@ -332,7 +332,7 @@ window.Net = {
                 if(open && i.detail) {
                     if(i.kind === 'message') {
                         let lastDate = null;
-                        body = `<div class="net-thread">${i.detail.messages.map((m, idx) => { const sep = m.date && m.date !== lastDate ? `<div class="net-date">── ${this.esc(m.date)} ──</div>` : ''; if(m.date) lastDate = m.date; return `${sep}<div class="net-msg"><span><b>${this.esc(m.from)}:</b> ${this.esc(m.text)} <code>${this.esc(m.time || '')}</code></span><button class="mini-btn" title="이 메시지 지우기" onclick="Net.deleteMsg('${i.id}', ${idx})">🗑️</button></div>`; }).join('')}</div>${this.replyBox(i.id)}`;
+                        body = `<div class="net-thread">${i.detail.messages.map((m, idx) => { const sep = m.date && m.date !== lastDate ? `<div class="net-date">── ${this.esc(m.date)} ──</div>` : ''; if(m.date) lastDate = m.date; return `${sep}<div class="net-msg"><span><b>${this.esc(m.from)}:</b> ${this.esc(m.text)} <code>${this.esc(m.time || '')}</code></span><button class="mini-btn" title="이 메시지 지우기" onclick="Net.deleteMsg('${i.id}', ${idx})">${IC('trash-2')}</button></div>`; }).join('')}</div>${this.replyBox(i.id)}`;
                     } else {
                         body = `<div class="net-body"><div class="net-card-title">${this.esc(i.detail.title)}</div><div class="net-meta"><code>${this.esc(i.from)} · ${this.esc(i.time)}</code></div>${this.para(i.detail.body)}</div>`;
                     }

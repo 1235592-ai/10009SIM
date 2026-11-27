@@ -41,7 +41,7 @@ window.App = {
         UI.renderScenarioList(); UI.renderWorldTemplateList(); UI.renderSafetyUI();
     },
 
-    // 🪄 버튼이 채울 대상(마지막으로 커서를 둔 칸)을 기억한다
+    // AI 채우기 버튼이 채울 대상(마지막으로 커서를 둔 칸)을 기억한다
     onPanelFocus: function(e, btnId) {
         if(e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') return;
         let type = 'unknown'; let typeKor = ''; let titleEl = null; let descEl = null;
@@ -102,14 +102,14 @@ window.App = {
     runWorldSketch: async function() {
         if(!Store.state.apiKey) return alert("API 키를 설정해주세요.");
         const w = Store.getTargetWorld();
-        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 🔑 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
+        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
 
         const hasContent = w.name || w.prompt || w.factions.length > 0 || w.lores.length > 0 || w.locations.length > 0;
         if(hasContent) {
-            if(!confirm("⚠️ 경고: 기존 데이터가 모두 삭제됩니다.\n정말 덮어쓰고 다시 스케치하시겠습니까?")) return;
+            if(!confirm("경고: 기존 데이터가 모두 삭제됩니다.\n정말 덮어쓰고 다시 스케치하시겠습니까?")) return;
         }
 
-        UI.showAILoader("✨ 세계관 뼈대 설계 중");
+        UI.showAILoader("세계관 뼈대 설계 중");
         try {
             const data = await API.generateWorldSketch(w.keywords);
             if(!data) throw new Error("데이터 파싱에 실패했습니다.");
@@ -143,14 +143,14 @@ window.App = {
     runMagicGenerator: async function() {
         if(!Store.state.apiKey) return alert("API 키를 설정해주세요.");
         const w = Store.getTargetWorld();
-        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 🔑 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
+        if(!w.keywords || w.keywords.length === 0) return alert("기본 설정 맨 위 키워드 칸에 키워드를 1개 이상 등록해주세요!\n(입력 후 스페이스, 쉼표, 엔터 또는 [추가])");
         
         const target = UI.lastFocusedWorldInput;
         if(!target) return;
 
         if (target.type === 'keywords') {
             if(w.keywords.length >= 10) return alert("키워드가 이미 10개 꽉 찼습니다!");
-            UI.showAILoader("✨ 추천 키워드 발굴 중");
+            UI.showAILoader("추천 키워드 발굴 중");
             try {
                 const res = await API.generateMoreKeywords(w.keywords);
                 res.split(',').forEach(k => {
@@ -173,7 +173,7 @@ window.App = {
             mode = isOverwrite ? 'overwrite' : 'append';
         }
 
-        UI.showAILoader(`✨ ${target.typeKor} 연성 중`);
+        UI.showAILoader(`${target.typeKor} 연성 중`);
         try {
             const result = await API.generateDetail(target.typeKor, w.keywords, title, desc, mode);
             
@@ -202,7 +202,7 @@ window.App = {
         
         Store.syncCharDOM();
 
-        UI.showAILoader("✨ 세계관 맞춤 캐릭터 연성 중");
+        UI.showAILoader("세계관 맞춤 캐릭터 연성 중");
         try {
             const data = await API.generateCharacter({
                 name: w.name,
@@ -227,7 +227,7 @@ window.App = {
 
             Store.forceSave();
             UI.renderCharacters();
-            UI.showToast(`✨ [${data.keyword}] 캐릭터가 연성되었습니다!`);
+            UI.showToast(`[${data.keyword}] 캐릭터가 연성되었습니다!`);
             
             setTimeout(() => {
                 const panel = document.querySelector('.panel.open') || document.getElementById('char-panel');
@@ -269,7 +269,7 @@ window.App = {
         const myChar = w.characters.find(c => c.id === r.myCharId); document.getElementById('header-user-name').innerText = myChar ? myChar.keyword : '무명';
         const actNpcs = r.activeCharIds.map(cid => w.characters.find(c=>c.id===cid)).filter(c=>c&&c.id!=='sys'); document.getElementById('header-npc-names').innerText = actNpcs.length > 0 ? actNpcs.map(c=>c.keyword).join(', ') : 'NPC 없음';
         let locName = "자유 이동 (미분류)"; if(r.currentLocIdx >= 0 && w.locations[r.currentLocIdx]) { const l = w.locations[r.currentLocIdx]; const reg = w.regions.find(rg => rg.id === l.regionId); locName = reg ? `${reg.name} - ${l.name}` : l.name; }
-        document.getElementById('header-loc-name').innerText = `🧭 위치: ` + locName; UI.setBackground(w.bgUrl); 
+        document.getElementById('header-loc-name').innerHTML = IC('compass') + ' 위치: ' + UI.esc(locName); UI.setBackground(w.bgUrl); 
         document.getElementById('room-memory-input').value = r.memory || ''; document.getElementById('global-status-input').value = r.globalStatus || '';
         UI.updateActionBtn(); 
         
@@ -293,7 +293,7 @@ window.App = {
         if(!r) return;
         r.baitRecoveryNextTurn = true;
         Store.forceSave();
-        UI.showToast("🎣 다음 턴 서술 시 과거사/복선을 회수합니다.");
+        UI.showToast("다음 턴 서술 시 과거사/복선을 회수합니다.");
     },
 
     runAI: async function(isRegen=false, idx=null) {
@@ -363,7 +363,7 @@ window.App = {
 
             if (r.baitRecoveryNextTurn) {
                 r.baitRecoveryNextTurn = false;
-                UI.showToast("🎣 떡밥 회수가 완료되었습니다.");
+                UI.showToast("떡밥 회수가 완료되었습니다.");
             }
 
             if(r.history.length > 0 && r.history.length % 15 === 0) this.triggerAutoSummary(); 
@@ -394,7 +394,7 @@ window.App = {
             document.getElementById('room-memory-input').value = r.memory; 
             Store.updateRoomState('memory', r.memory); 
             
-            UI.showToast("✨ 상황 요약이 구조화되어 기억에 저장되었습니다."); 
+            UI.showToast("상황 요약이 구조화되어 기억에 저장되었습니다."); 
             const memArea = document.getElementById('room-memory-input');
             if(memArea) {
                 memArea.style.transition = 'box-shadow 0.3s';
