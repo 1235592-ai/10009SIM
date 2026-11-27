@@ -1,7 +1,7 @@
 window.Store = {
     VERSION: 100,
     state: {
-        provider: 'gemini', historyLimit: 25, replyLength: 1500, claudeCacheTtl: '1h', theme: 'dark', apiKey: '', modelName: 'gemini-3.8-flash', baseUrl: '', providerConfigs: {}, globalRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
+        provider: 'gemini', historyLimit: 25, replyLength: 1500, claudeCacheTtl: '1h', theme: 'dark', apiKey: '', modelName: 'gemini-3.8-flash', baseUrl: '', providerConfigs: {}, globalRules: '', spectatorRules: '', worldTagsMigrated: false, lobbyBgUrl: '',
         safety: {},
         roomTags: [], worlds: [], rooms: [], activeRoomId: null, activeWorldId: null
     },
@@ -37,6 +37,7 @@ window.Store = {
             this.state.baseUrl = master.baseUrl || '';
             this.state.providerConfigs = master.providerConfigs || {};
             this.state.globalRules = master.globalRules || '';
+            this.state.spectatorRules = master.spectatorRules || '';
             this.state.historyLimit = master.historyLimit || 25;
             this.state.replyLength = master.replyLength || 1500;
             this.state.claudeCacheTtl = master.claudeCacheTtl || '1h';
@@ -109,11 +110,25 @@ window.Store = {
         this.state.safety[key][target] = on; this.forceSave(); UI.showToast("안전 설정이 저장되었습니다.");
     },
 
+    // 내 캐릭터가 지정되지 않은 시나리오는 관전 모드로 본다
+    isSpectator: function(r) { return !r || !r.worldInstance.characters.some(c => c.id === r.myCharId && c.id !== 'sys'); },
+    clearMyChar: function() { const r = this.getActiveRoom(); if(!r) return; this.syncCharDOM(); r.myCharId = null; this.forceSave(); UI.renderCharacters(); App.loadActiveRoom(true); UI.showToast("관전 모드로 전환했습니다."); },
+    saveSpectatorRules: function() {
+        const val = document.getElementById('set-spectator-rules').value;
+        this.state.spectatorRules = val.trim() === API.DEFAULT_SPECTATOR_RULES.trim() ? '' : val;
+        this.forceSave(); UI.showToast("관전 지침이 저장되었습니다.");
+    },
+    resetSpectatorRules: function() {
+        if(!confirm("관전 지침을 기본값으로 되돌리시겠습니까?\n(직접 수정한 내용은 사라집니다)")) return;
+        this.state.spectatorRules = ''; document.getElementById('set-spectator-rules').value = API.DEFAULT_SPECTATOR_RULES;
+        this.forceSave(); UI.showToast("기본 관전 지침으로 되돌렸습니다.");
+    },
+
     setTheme: function(theme) { this.state.theme = theme === 'light' ? 'light' : 'dark'; UI.applyTheme(); this.forceSave(); },
 
     masterSettings: function() {
         const s = this.state;
-        return { provider: s.provider, historyLimit: s.historyLimit, replyLength: s.replyLength, claudeCacheTtl: s.claudeCacheTtl, theme: s.theme, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
+        return { provider: s.provider, historyLimit: s.historyLimit, replyLength: s.replyLength, claudeCacheTtl: s.claudeCacheTtl, theme: s.theme, apiKey: s.apiKey, modelName: s.modelName, baseUrl: s.baseUrl, providerConfigs: s.providerConfigs, globalRules: s.globalRules, spectatorRules: s.spectatorRules, worldTagsMigrated: s.worldTagsMigrated, safety: s.safety, roomTags: s.roomTags, lobbyBgUrl: s.lobbyBgUrl };
     },
 
     // 현재 입력된 키/모델을 서비스별로 따로 보관해 두어, 서비스를 바꿔도 이전 키가 지워지지 않게 한다.
@@ -288,7 +303,7 @@ window.Store = {
     exportChatToTxt: function() { 
         if(!confirm("현재 시나리오의 대화 로그를 텍스트 파일(TXT)로 다운로드하시겠습니까?")) return;
         const r = this.getActiveRoom(); if(!r) return; const w = r.worldInstance; let txt = `${r.name} - 로그\n\n`; 
-        r.history.filter(m => !m.hidden).forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || 'USER') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); 
+        r.history.filter(m => !m.hidden).forEach(m => { const speaker = m.role === 'user' ? (w.characters.find(c=>c.id===r.myCharId)?.keyword || '관전자') : (m.charIds || ['sys']).map(id => w.characters.find(c=>c.id===id)?.keyword).filter(x=>x).join(', ') || '시뮬레이터'; txt += `[${speaker}]\n${m.variants[m.currentVariant]}\n\n`; }); 
         const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download=`${r.name}.txt`; a.click(); 
     },
     importData: function(e) { 
@@ -301,7 +316,7 @@ window.Store = {
                 
                 this.db = await this.openDB();
                 const tx = this.db.transaction(['master', 'worlds', 'rooms'], 'readwrite');
-                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.8-flash', worldTagsMigrated:!!st.worldTagsMigrated, baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', historyLimit:st.historyLimit||25, replyLength:st.replyLength||1500, claudeCacheTtl:st.claudeCacheTtl||'1h', theme:st.theme||'dark', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
+                tx.objectStore('master').put({id:'main', provider:st.provider||'gemini', apiKey:st.apiKey||'', modelName:st.modelName||'gemini-3.8-flash', worldTagsMigrated:!!st.worldTagsMigrated, baseUrl:st.baseUrl||'', providerConfigs:st.providerConfigs||{}, globalRules:st.globalRules||'', spectatorRules:st.spectatorRules||'', historyLimit:st.historyLimit||25, replyLength:st.replyLength||1500, claudeCacheTtl:st.claudeCacheTtl||'1h', theme:st.theme||'dark', safety:st.safety||this.state.safety, roomTags:st.roomTags||[], lobbyBgUrl:st.lobbyBgUrl||''});
                 if(st.worlds) { st.worlds.forEach(w => { if(!w.keywords) w.keywords=[]; tx.objectStore('worlds').put(w); }); }
                 if(st.rooms) st.rooms.forEach(rm => tx.objectStore('rooms').put(rm));
                 tx.oncomplete = () => { alert("복원 완료! 앱을 재시작합니다."); window.location.reload(); };
