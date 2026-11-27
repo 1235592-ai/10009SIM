@@ -14,6 +14,8 @@ window.App = {
         
         const bgEl = document.getElementById('set-lobby-bg'); if(bgEl) bgEl.value = Store.state.lobbyBgUrl || '';
         UI.applyTheme();
+        // 채팅 응답을 백그라운드에서도 받을 수 있게 일꾼(sw.js)을 등록한다. 실패해도 앱은 그대로 동작한다.
+        if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
         UI.renderApiSettings();
         const rulesEl = document.getElementById('set-global-rules'); if(rulesEl) rulesEl.value = API.getRules();
 

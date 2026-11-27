@@ -206,16 +206,77 @@ window.API = {
         return res;
     },
 
+    // 페이지가 직접 받는 방식. 페이지가 멈추면(다른 앱으로 넘어가면) 같이 끊긴다.
+    directStream: async function(req, onText) {
+        const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body) });
+        if (!res.ok) { const body = await res.text(); const e = new Error(`(${res.status}) ${body.slice(0, 400)}`); e.status = res.status; e.body = body; throw e; }
+        const reader = res.body.getReader(); const decoder = new TextDecoder();
+        while(true) { const {done, value} = await reader.read(); if(done) break; onText(decoder.decode(value, {stream: true})); }
+    },
+
+    // 백그라운드 일꾼(sw.js)에게 맡기는 방식. 일꾼이 받은 글자를 그때그때 넘겨주고,
+    // 페이지가 멈췄다 돌아오면 그동안 받아 둔 분량을 한 번에 이어받는다.
+    swStream: function(req, onText) {
+        return new Promise((resolve, reject) => {
+            const sw = navigator.serviceWorker.controller;
+            const id = 'j' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+            let rawLen = 0, acked = false, finished = false, syncing = false, lastProgress = Date.now();
+            const send = (msg) => { const c = navigator.serviceWorker.controller || sw; try { c.postMessage(msg); } catch(e) {} };
+            const cleanup = () => {
+                navigator.serviceWorker.removeEventListener('message', onMsg);
+                document.removeEventListener('visibilitychange', onWake); document.removeEventListener('resume', onWake); window.removeEventListener('pageshow', onWake);
+                clearInterval(watchdog); clearTimeout(ackTimer);
+            };
+            const finish = (error) => {
+                if(finished) return; finished = true; cleanup(); send({ type: 'llm-clear', id });
+                if(error) { const e = new Error(`(${error.status}) ${(error.body || '').slice(0, 400)}`); e.status = error.status; e.body = error.body; reject(e); } else resolve();
+            };
+            // 일꾼이 가진 전체 분량 중 아직 못 받은 부분만 골라 넘긴다 (중복이나 빠진 구간이 생기지 않게)
+            const apply = (offset, text) => {
+                if(offset > rawLen) return sync();
+                const part = text.slice(rawLen - offset);
+                if(part) { rawLen += part.length; lastProgress = Date.now(); onText(part); }
+            };
+            const fromCache = async () => {
+                try {
+                    const hit = await (await caches.open('10009sim-llm-jobs')).match(new URL('__llm-job/' + id, location.href).href);
+                    if(hit) { const d = await hit.json(); apply(0, d.raw); return finish(d.error); }
+                } catch(e) {}
+                finish({ status: 0, body: '백그라운드에서 응답을 받는 중에 연결이 끊겼습니다.' });
+            };
+            const sync = () => {
+                if(syncing || finished) return; syncing = true; lastProgress = Date.now();
+                send({ type: 'llm-get', id });
+                setTimeout(() => { if(syncing && !finished) { syncing = false; fromCache(); } }, 5000);
+            };
+            const onMsg = (ev) => {
+                const m = ev.data; if(!m || m.id !== id || finished) return;
+                if(m.type === 'llm-ack') acked = true;
+                else if(m.type === 'llm-chunk') apply(m.offset, m.text);
+                else if(m.type === 'llm-done') { if(m.length > rawLen) sync(); else finish(m.error); }
+                else if(m.type === 'llm-state') {
+                    syncing = false;
+                    if(m.unknown) return fromCache();
+                    apply(0, m.raw); if(m.done) finish(m.error);
+                }
+            };
+            const onWake = () => { if(document.visibilityState === 'visible') sync(); };
+            navigator.serviceWorker.addEventListener('message', onMsg);
+            document.addEventListener('visibilitychange', onWake); document.addEventListener('resume', onWake); window.addEventListener('pageshow', onWake);
+            // 화면을 보고 있는데 한동안 소식이 없으면 일꾼에게 상태를 물어본다
+            const watchdog = setInterval(() => { if(document.visibilityState === 'visible' && Date.now() - lastProgress > 25000) sync(); }, 10000);
+            // 일꾼이 대답하지 않으면 요청을 거두고, 페이지가 직접 받는 방식으로 돌아간다
+            const ackTimer = setTimeout(() => { if(acked || finished) return; finished = true; cleanup(); send({ type: 'llm-clear', id }); const e = new Error('sw unavailable'); e.swUnavailable = true; reject(e); }, 3000);
+            send({ type: 'llm-start', id, url: req.url, headers: req.headers, body: JSON.stringify(req.body) });
+        });
+    },
+
     // 반환값: { input, cached } (입력 토큰 수와 그중 캐시에서 읽은 양). 서비스가 알려주지 않으면 null.
     streamLLM: async function(contents, sysText, onChunk, options={}) {
         const req = this.buildRequest(contents, sysText, options, true);
-        const res = await this.send(req);
-        let usage = null;
-
-        const reader = res.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
-        while(true) {
-            const {done, value} = await reader.read(); if(done) break;
-            buffer += decoder.decode(value, {stream: true});
+        let usage = null; let buffer = "";
+        const onText = (text) => {
+            buffer += text;
             const lines = buffer.split('\n'); buffer = lines.pop();
             for(const line of lines) {
                 if(!line.startsWith('data:')) continue;
@@ -224,6 +285,17 @@ window.API = {
                 const u = req.usage(json); if(u) usage = u;
                 const chunk = req.chunk(json); if(chunk) onChunk(chunk);
             }
+        };
+        const useSW = ('serviceWorker' in navigator) && !!navigator.serviceWorker.controller;
+        const run = async () => {
+            if(useSW) { try { return await this.swStream(req, onText); } catch(e) { if(!e.swUnavailable) throw e; } }
+            return await this.directStream(req, onText);
+        };
+        try { await run(); }
+        catch(e) {
+            // 일부 모델은 temperature를 거부하므로, 그 경우 한 번만 빼고 다시 보낸다
+            if(e.status === 400 && 'temperature' in req.body && /temperature/i.test(e.body || '')) { delete req.body.temperature; await run(); }
+            else throw e;
         }
         return usage;
     },
