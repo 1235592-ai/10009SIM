@@ -150,6 +150,8 @@ window.UI = {
             modSel.value = info.models.some(([id]) => id === Store.state.modelName) ? Store.state.modelName : '';
         }
         const limEl = document.getElementById('set-history-limit'); if(limEl) limEl.value = Store.state.historyLimit || 25;
+        const ttlEl = document.getElementById('set-claude-cache'); if(ttlEl) ttlEl.value = Store.state.claudeCacheTtl || '1h';
+        const ttlBox = document.getElementById('claude-cache-box'); if(ttlBox) ttlBox.style.display = provider === 'anthropic' ? 'block' : 'none';
         const lenEl = document.getElementById('set-reply-length'); if(lenEl) lenEl.value = Store.state.replyLength || 1500;
         const hintEl = document.getElementById('provider-hint'); if(hintEl) hintEl.innerText = `* ${info.hint}\n* API 키는 이 기기 브라우저에만 저장되며, 전체 백업 파일에는 포함됩니다.`;
     },
@@ -626,6 +628,13 @@ window.UI = {
             
             moreBtn.onclick = () => { moreMenu.style.display = moreMenu.style.display==='none' ? 'inline-flex' : 'none'; };
             moreMenu.append(eb, rw, db);
+            if(m.usage && m.usage.input) {
+                // 이 응답을 만들 때 보낸 입력량과, 그중 캐시에서 읽어 싸게 처리된 비율
+                const u = document.createElement('span'); u.className = 'usage-tag';
+                u.title = `입력 ${m.usage.input.toLocaleString()} 토큰 중 ${m.usage.cached.toLocaleString()} 토큰을 캐시에서 읽음`;
+                u.innerText = `입력 ${(m.usage.input / 1000).toFixed(1)}k · 캐시 ${Math.round(m.usage.cached / m.usage.input * 100)}%`;
+                c.append(u);
+            }
             c.append(moreBtn, moreMenu);
         } else {
             const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="수정"; eb.onclick=()=>this.enterEdit(idx); 

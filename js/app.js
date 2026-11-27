@@ -306,22 +306,27 @@ window.App = {
 
         const scan = r.history.slice(-5).map(m => m.variants[m.currentVariant]).join(" ");
         
-        const limit = Store.state.historyLimit || 25;
+        // 보낼 대화 범위: 매 턴 한 칸씩 밀면 대화 앞부분이 매번 달라져 캐시가 안 맞는다.
+        // 그래서 시작 위치를 10개 단위로만 옮긴다 (보내는 수는 설정값 ~ 설정값+9개 사이).
+        const limit = Store.state.historyLimit || 25; const STEP = 10;
+        const start = Math.max(0, Math.floor((tIdx - limit) / STEP) * STEP);
         let contents = [];
         // 같은 역할이 연달아 오면(공유 메모 + 내 메시지 등) 하나로 합친다
-        r.history.slice(Math.max(0, tIdx - limit), tIdx).filter(m => m.variants[m.currentVariant].trim() !== "").forEach(m => {
+        r.history.slice(start, tIdx).filter(m => m.variants[m.currentVariant].trim() !== "").forEach(m => {
             const role = m.role === 'ai' ? 'model' : 'user'; const text = m.variants[m.currentVariant];
             const last = contents[contents.length - 1];
             if(last && last.role === role) last.parts[0].text += '\n\n' + text; else contents.push({ role, parts: [{ text }] });
         });
         if(contents.length === 0) contents = [{role:'user', parts:[{text:'(시작해.)'}]}];
-        const sysPrompt = API.buildPrompt(r, scan);
+        if(contents[contents.length - 1].role !== 'user') contents.push({role:'user', parts:[{text:'(계속)'}]});
+        const prompt = API.buildPrompt(r, scan);
 
         let fullText = "";
         try { 
-            await API.streamLLM(contents, sysPrompt, (chunk) => { 
+            const usage = await API.streamLLM(contents, prompt.system, (chunk) => { 
                 fullText += chunk; msgObj.variants[msgObj.currentVariant] = fullText; textEl.innerHTML = UI.formatMsg(fullText, 'ai') + UI.STREAM_DOTS; 
-            }); 
+            }, { tail: prompt.tail, cache: true }); 
+            msgObj.usage = usage || undefined;
         } 
         catch(e) { 
             if(!fullText.trim()) { msgObj.variants[msgObj.currentVariant] = "[오류] " + e.message; textEl.innerHTML = UI.formatMsg(msgObj.variants[msgObj.currentVariant], 'ai'); } 
