@@ -3,9 +3,9 @@ window.UI = {
     lastFocusedWorldInput: null, 
 
     STREAM_DOTS: '<span class="typing-indicator inline"><span></span><span></span><span></span></span>',
-    DRAG: '<span class="drag-handle" title="끌어서 순서 변경" onclick="event.preventDefault(); event.stopPropagation();">≡</span>',
+    DRAG: '<span class="drag-handle" title="끌어서 순서 변경" onclick="event.preventDefault(); event.stopPropagation();">' + IC('grip-vertical') + '</span>',
 
-    // ≡ 손잡이를 끌어 같은 묶음(같은 부모, 같은 data-sort-type) 안에서 순서를 바꾼다
+    // 손잡이를 끌어 같은 묶음(같은 부모, 같은 data-sort-type) 안에서 순서를 바꾼다
     initSortable: function() {
         document.addEventListener('pointerdown', (e) => {
             const handle = e.target.closest('.drag-handle'); if(!handle) return;
@@ -43,7 +43,7 @@ window.UI = {
         const keys = ['community', 'darkweb', 'inbox'];
         if(keys.some(k => document.getElementById(`w-net-${k}`).value.trim()) && !confirm("이미 적힌 내용을 헌터 세계관 예시로 덮어쓰시겠습니까?")) return;
         keys.forEach(k => { const el = document.getElementById(`w-net-${k}`); el.value = Net.HUNTER_EXAMPLE[k]; this.autoResize(el); });
-        this.showToast("예시를 넣었습니다. [💾 변경사항 저장]을 눌러야 저장됩니다.");
+        this.showToast("예시를 넣었습니다. [변경사항 저장]을 눌러야 저장됩니다.");
     },
 
     applyTheme: function() {
@@ -153,7 +153,7 @@ window.UI = {
         const modSel = document.getElementById('model-preset-sel');
         if(modSel) {
             modSel.style.display = info.models.length ? 'block' : 'none';
-            modSel.innerHTML = `<option value="">▼ 추천 모델 선택</option>` + info.models.map(([id, desc]) => `<option value="${id}">${id} (${desc})</option>`).join('');
+            modSel.innerHTML = `<option value="">추천 모델 선택</option>` + info.models.map(([id, desc]) => `<option value="${id}">${id} (${desc})</option>`).join('');
             modSel.value = info.models.some(([id]) => id === Store.state.modelName) ? Store.state.modelName : '';
         }
         const limEl = document.getElementById('set-history-limit'); if(limEl) limEl.value = Store.state.historyLimit || 25;
@@ -183,8 +183,8 @@ window.UI = {
             document.getElementById('overlay').classList.add('active');
             
             if(id==='world-panel') { 
-                if(Store.state.activeRoomId) { document.getElementById('world-panel-title').innerText = "🗺️ 인게임 세계 설정"; document.getElementById('btn-free-roam').style.display = 'block'; } 
-                else { document.getElementById('world-panel-title').innerText = "🌌 템플릿 원본 편집"; document.getElementById('btn-free-roam').style.display = 'none'; } 
+                if(Store.state.activeRoomId) { document.getElementById('world-panel-title').innerHTML = IC('map') + " 인게임 세계 설정"; document.getElementById('btn-free-roam').style.display = 'block'; } 
+                else { document.getElementById('world-panel-title').innerHTML = IC('globe') + " 템플릿 원본 편집"; document.getElementById('btn-free-roam').style.display = 'none'; } 
                 this.lastFocusedWorldInput = null;
                 const mBtn = document.getElementById('magic-btn');
                 if(mBtn) { mBtn.disabled = true; mBtn.style.opacity = '0.3'; mBtn.style.boxShadow = 'none'; }
@@ -193,7 +193,7 @@ window.UI = {
             if(id==='char-panel') { 
                 const inRoom = !!Store.state.activeRoomId;
                 document.getElementById('h3-my-char').style.display = inRoom ? 'flex' : 'none'; document.getElementById('h3-active-npc').style.display = inRoom ? 'flex' : 'none';
-                document.getElementById('h3-other-char').innerText = inRoom ? '🚩 세력별 인물 (대기 중인 조연)' : '🚩 세력별 인물';
+                document.getElementById('h3-other-char').innerHTML = IC('flag') + (inRoom ? ' 세력별 인물 (대기 중인 조연)' : ' 세력별 인물');
                 this.lastFocusedWorldInput = null;
                 const mBtn = document.getElementById('magic-btn-char');
                 if(mBtn) { mBtn.disabled = true; mBtn.style.opacity = '0.3'; mBtn.style.boxShadow = 'none'; }
@@ -228,23 +228,23 @@ window.UI = {
             
             const tagsHtml = r.tagIds.map(tId => { 
                 const tObj = Store.state.roomTags.find(x => x.id === tId); 
-                return tObj ? `<span class="lobby-card-tag" style="background:${tObj.kind==='world'?'#047857':'#7c3aed'};">${tObj.kind==='world'?'🌌 ':''}${this.esc(tObj.name)} <button type="button" onclick="App.removeRoomTag('${r.id}', '${tId}', event)">×</button></span>` : ''; 
+                return tObj ? `<span class="lobby-card-tag" style="background:${tObj.kind==='world'?'#047857':'#7c3aed'};">${tObj.kind==='world'?IC('globe')+' ':''}${this.esc(tObj.name)} <button type="button" onclick="App.removeRoomTag('${r.id}', '${tId}', event)">×</button></span>` : ''; 
             }).join('');
             
-            const addTagSelect = `<select class="select-std tag-add-sel" onclick="event.stopPropagation()" onchange="App.addRoomTag('${r.id}', this, event)"><option value="">+ 태그</option>${Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).map(t => `<option value="${t.id}">${t.kind==='world'?'🌌 ':''}${this.esc(t.name)}</option>`).join('')}<option value="__new">✏️ 새 태그 만들기...</option></select>`;
+            const addTagSelect = `<select class="select-std tag-add-sel" onclick="event.stopPropagation()" onchange="App.addRoomTag('${r.id}', this, event)"><option value="">+ 태그</option>${Store.state.roomTags.filter(t => !r.tagIds.includes(t.id)).map(t => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}<option value="__new">새 태그 만들기...</option></select>`;
             
             return `
             <div class="lobby-card ${isRecent ? 'recent' : ''}">
-                ${isRecent ? '<span class="lobby-card-tag btn-solid" style="background:#dc2626;">🔥 이어하기</span>' : ''}
+                ${isRecent ? '<span class="lobby-card-tag btn-solid" style="background:#dc2626;">이어하기</span>' : ''}
                 <div class="lobby-card-title">${this.esc(r.name)}</div>
-                <div class="lobby-card-meta">🌌 ${this.esc(r.worldInstance.name)} · 턴 ${r.history.length}</div>
+                <div class="lobby-card-meta">${this.esc(r.worldInstance.name)} · 턴 ${r.history.length}</div>
                 <div class="lobby-card-tags">${tagsHtml}${addTagSelect}</div>
                 <div class="card-btns">
-                    <button class="btn-play btn-enter" onclick="App.enterRoom('${r.id}')">▶ 입장</button>
-                    <button class="btn-icon" onclick="App.extractTemplate('${r.id}')" title="템플릿으로 추출">🌌</button>
-                    <button class="btn-icon" onclick="App.editRoomInfo('${r.id}')" title="이름 수정">✏️</button>
-                    <button class="btn-icon" onclick="App.cloneRoom('${r.id}')" title="새 회차로 복제">📋</button>
-                    <button class="btn-icon danger" onclick="App.deleteRoom('${r.id}')" title="삭제">✖</button>
+                    <button class="btn-play btn-enter" onclick="App.enterRoom('${r.id}')">입장</button>
+                    <button class="btn-icon" onclick="App.extractTemplate('${r.id}')" title="템플릿으로 추출">${IC('file-output')}</button>
+                    <button class="btn-icon" onclick="App.editRoomInfo('${r.id}')" title="이름 수정">${IC('pencil')}</button>
+                    <button class="btn-icon" onclick="App.cloneRoom('${r.id}')" title="새 회차로 복제">${IC('copy')}</button>
+                    <button class="btn-icon danger" onclick="App.deleteRoom('${r.id}')" title="삭제">${IC('trash-2')}</button>
                 </div>
             </div>`;
         }).join('');
@@ -254,19 +254,19 @@ window.UI = {
         const opt = t => `<option value="${t.id}" ${cur===t.id?'selected':''}>${this.esc(t.name)} (${Store.state.rooms.filter(r => r.tagIds.includes(t.id)).length})</option>`;
         const worldTags = Store.state.roomTags.filter(t => t.kind === 'world'); const userTags = Store.state.roomTags.filter(t => t.kind !== 'world');
         filterSel.innerHTML = `<option value="all">모든 시나리오 보기 (${Store.state.rooms.length})</option>`
-            + (worldTags.length ? `<optgroup label="🌌 세계관별">${worldTags.map(opt).join('')}</optgroup>` : '')
-            + (userTags.length ? `<optgroup label="🏷️ 태그별">${userTags.map(opt).join('')}</optgroup>` : '');
+            + (worldTags.length ? `<optgroup label="세계관별">${worldTags.map(opt).join('')}</optgroup>` : '')
+            + (userTags.length ? `<optgroup label="태그별">${userTags.map(opt).join('')}</optgroup>` : '');
     },
     
     renderWorldTemplateList: function() { 
         document.getElementById('world-template-list').innerHTML = Store.state.worlds.map(w => `
         <div class="lobby-card world">
             <div class="lobby-card-title">${this.esc(w.name)}</div>
-            <div class="lobby-card-meta">👤 ${w.characters.filter(c => c.id !== 'sys').length}명 · 🗺️ ${w.regions.length}지역 · 📍 ${w.locations.length}장소</div>
+            <div class="lobby-card-meta">인물 ${w.characters.filter(c => c.id !== 'sys').length} · 지역 ${w.regions.length} · 장소 ${w.locations.length}</div>
             <div class="card-btns">
-                <button class="btn-play btn-world" onclick="App.editWorldTemplate('${w.id}')">🛠 세계관</button>
-                <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong);" onclick="App.editWorldChars('${w.id}')">👥 세력</button>
-                <button class="btn-icon danger" onclick="Store.deleteWorldTemplate('${w.id}')" title="템플릿 삭제">✖</button>
+                <button class="btn-play btn-world" onclick="App.editWorldTemplate('${w.id}')">세계관</button>
+                <button class="btn-play" style="background:var(--surface-3); color:var(--text-strong);" onclick="App.editWorldChars('${w.id}')">세력</button>
+                <button class="btn-icon danger" onclick="Store.deleteWorldTemplate('${w.id}')" title="템플릿 삭제">${IC('trash-2')}</button>
             </div>
         </div>`).join(''); 
     },
@@ -301,7 +301,7 @@ window.UI = {
         const renderLoreItem = (l) => `
             <div class="item-card" style="margin-bottom:8px;" data-sort-type="l" data-sort-id="${l.id}">
                 <details id="det-l-${l.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-                    <summary style="color:var(--text-main);">${this.DRAG}📄 ${this.esc(l.keyword) || '새 지식'}</summary>
+                    <summary style="color:var(--text-main);">${this.DRAG}${IC('file-text')} ${this.esc(l.keyword) || '새 지식'}</summary>
                     <div style="margin-top:10px;">
                         <select class="select-std" id="l-fld-${l.id}">
                             <option value="">(상위 분류 없음)</option>
@@ -320,15 +320,15 @@ window.UI = {
             lfList.innerHTML = w.loreFolders.map(lf => `
                 <details class="folder-box" id="det-lf-${lf.id}" data-sort-type="lf" data-sort-id="${lf.id}">
                     <summary class="folder-title">
-                        <h4 style="margin:0;">${this.DRAG}📁 ${this.esc(lf.name) || '새 분류'}</h4>
-                        <button class="mini-btn" onclick="Store.delWorldItem('lf','${lf.id}', event)">✖</button>
+                        <h4 style="margin:0;">${this.DRAG}${IC('folder')} ${this.esc(lf.name) || '새 분류'}</h4>
+                        <button class="mini-btn" title="분류 삭제" onclick="Store.delWorldItem('lf','${lf.id}', event)">${IC('trash-2')}</button>
                     </summary>
                     <div style="margin-top:10px;">
                         <input type="text" class="input-std" id="lf-n-${lf.id}" value="${this.esc(lf.name)}" placeholder="분류명">
                         <textarea class="area-std auto-resize" id="lf-d-${lf.id}" placeholder="설명" oninput="UI.autoResize(this);">${this.esc(lf.desc)}</textarea>
                         <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
                             ${folderMap[lf.id].map(renderLoreItem).join('')}
-                            <button class="btn-ghost" style="margin:0; padding:6px;" onclick="Store.addLore('${lf.id}')">+ 📄 이 분류에 지식 추가</button>
+                            <button class="btn-ghost" style="margin:0; padding:6px;" onclick="Store.addLore('${lf.id}')">+ 이 분류에 지식 추가</button>
                         </div>
                     </div>
                 </details>`).join('');
@@ -341,7 +341,7 @@ window.UI = {
         const renderLocItem = (loc, realIdx) => `
             <div class="item-card" style="margin-bottom:8px;" data-sort-type="loc" data-sort-id="${loc.id}">
                 <details id="det-loc-${loc.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-                    <summary>${this.DRAG}📍 ${this.esc(loc.name) || '새 장소'}</summary>
+                    <summary>${this.DRAG}${IC('map-pin')} ${this.esc(loc.name) || '새 장소'}</summary>
                     <div style="margin-top:10px;">
                         <input type="text" class="input-std" id="loc-n-${loc.id}" value="${this.esc(loc.name)}" placeholder="장소명">
                         <select class="select-std" id="loc-r-${loc.id}" style="margin-bottom:5px;">
@@ -349,7 +349,7 @@ window.UI = {
                             ${w.regions.map(reg=>`<option value="${reg.id}" ${loc.regionId===reg.id?'selected':''}>지역: ${this.esc(reg.name)}</option>`).join('')}
                         </select>
                         <textarea class="area-std auto-resize" id="loc-d-${loc.id}" placeholder="장소 특징" oninput="UI.autoResize(this);">${this.esc(loc.desc)}</textarea>
-                        ${r ? `<button class="btn-main" style="background:${r.currentLocIdx===realIdx?'#fbbf24':'var(--surface-3)'}; color:${r.currentLocIdx===realIdx?'#000':'var(--text-strong)'};" onclick="Store.setLoc(${realIdx})">${r.currentLocIdx===realIdx?'📍 현재 위치로 설정':'여기로 이동'}</button>` : ''}
+                        ${r ? `<button class="btn-main" style="background:${r.currentLocIdx===realIdx?'#fbbf24':'var(--surface-3)'}; color:${r.currentLocIdx===realIdx?'#000':'var(--text-strong)'};" onclick="Store.setLoc(${realIdx})">${r.currentLocIdx===realIdx?'현재 위치':'여기로 이동'}</button>` : ''}
                         <button class="btn-danger" onclick="Store.delWorldItem('loc','${loc.id}', event)">삭제</button>
                     </div>
                 </details>
@@ -360,15 +360,15 @@ window.UI = {
             regList.innerHTML = w.regions.map(reg => `
                 <details class="folder-box" id="det-reg-${reg.id}" data-sort-type="reg" data-sort-id="${reg.id}">
                     <summary class="folder-title">
-                        <h4 style="margin:0; color:var(--c-green);">${this.DRAG}🏔️ ${this.esc(reg.name) || '새 지역'}</h4>
-                        <button class="mini-btn" onclick="Store.delWorldItem('reg','${reg.id}', event)">✖</button>
+                        <h4 style="margin:0; color:var(--c-green);">${this.DRAG}${IC('mountain')} ${this.esc(reg.name) || '새 지역'}</h4>
+                        <button class="mini-btn" title="지역 삭제" onclick="Store.delWorldItem('reg','${reg.id}', event)">${IC('trash-2')}</button>
                     </summary>
                     <div style="margin-top:10px;">
                         <input type="text" class="input-std" id="reg-n-${reg.id}" value="${this.esc(reg.name)}" placeholder="지역명">
                         <textarea class="area-std auto-resize" id="reg-d-${reg.id}" placeholder="지역 특징" oninput="UI.autoResize(this);">${this.esc(reg.desc)}</textarea>
                         <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-color);">
                             ${locMap[reg.id].map(loc=>renderLocItem(loc, w.locations.findIndex(x=>x.id===loc.id))).join('')}
-                            <button class="btn-ghost" style="margin:0; padding:6px;" onclick="Store.addLocation('${reg.id}')">+ 📍 이 지역에 장소 추가</button>
+                            <button class="btn-ghost" style="margin:0; padding:6px;" onclick="Store.addLocation('${reg.id}')">+ 이 지역에 장소 추가</button>
                         </div>
                     </div>
                 </details>`).join('');
@@ -379,10 +379,10 @@ window.UI = {
         const sketchBtn = document.getElementById('btn-world-sketch');
         if(sketchBtn) {
             if(hasContent) {
-                sketchBtn.innerHTML = '🔄 세계관 다시 스케치하기 (전체 덮어쓰기)';
+                sketchBtn.innerHTML = '세계관 다시 스케치하기 (전체 덮어쓰기)';
                 sketchBtn.style.background = '#b91c1c';
             } else {
-                sketchBtn.innerHTML = '✨ 세계관 초안 스케치';
+                sketchBtn.innerHTML = '세계관 초안 스케치';
                 sketchBtn.style.background = '#8b5cf6';
             }
         }
@@ -440,11 +440,11 @@ window.UI = {
             <div style="margin-top:12px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <div style="display:flex; gap:6px;">
-                        ${r && !isMy ? `<button onclick="Store.setMyChar('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem;">🙋‍♂️ 내 캐릭터 지정</button>` : ''}
-                        ${r && !isMy ? `<button onclick="Store.toggleActiveNpc('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem; border-color:${isNpc?'var(--c-green)':'var(--border-strong)'}; color:${isNpc?'var(--c-green)':'var(--text-muted)'};">${isNpc?'🗣️ 주연 해제':'🗣️ 주연 추가'}</button>` : ''}
+                        ${r && !isMy ? `<button onclick="Store.setMyChar('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem;">내 캐릭터 지정</button>` : ''}
+                        ${r && !isMy ? `<button onclick="Store.toggleActiveNpc('${c.id}')" class="btn-ghost" style="margin:0; padding:4px 10px; font-size:0.75rem; border-color:${isNpc?'var(--c-green)':'var(--border-strong)'}; color:${isNpc?'var(--c-green)':'var(--text-muted)'};">${isNpc?'주연 해제':'주연 추가'}</button>` : ''}
                     </div>
                     <label style="font-size:0.85rem; color:var(--text-muted); cursor:pointer;">
-                        <input type="checkbox" ${c.isHidden?'checked':''} onchange="Store.toggleHidden('${c.id}')"> 👁️ 숨김
+                        <input type="checkbox" ${c.isHidden?'checked':''} onchange="Store.toggleHidden('${c.id}')"> 숨김
                     </label>
                 </div>
                 
@@ -461,7 +461,7 @@ window.UI = {
                 <select class="select-std" id="c-trig-${c.id}">${locOpts}</select>` : ''}
                 
                 <textarea class="area-std auto-resize" id="c-d-${c.id}" placeholder="설명" oninput="UI.autoResize(this);">${this.esc(c.desc)}</textarea>
-                <span class="secret-label">🔒 인물 비밀</span>
+                <span class="secret-label">${IC('lock')} 인물 비밀</span>
                 <textarea class="area-std auto-resize" id="c-s-${c.id}" oninput="UI.autoResize(this);">${this.esc(c.secret)}</textarea>
                 
                 ${c.id!=='sys' ? `<button class="btn-danger" style="margin-top:16px;" onclick="Store.delChar('${c.id}')">인물 완전 삭제</button>` : ''}
@@ -497,16 +497,16 @@ window.UI = {
             return `
             <details class="folder-box fac-group" id="det-fg-${f.id}" data-sort-type="f" data-sort-id="${f.id}">
                 <summary class="folder-title">
-                    <h4 style="margin:0; color:var(--c-blue);">${this.DRAG}🚩 ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
-                    <button class="mini-btn" title="세력 삭제" onclick="Store.delWorldItem('f','${f.id}', event)">✖</button>
+                    <h4 style="margin:0; color:var(--c-blue);">${this.DRAG}${IC('flag')} ${this.esc(f.name) || '새 세력'} <span class="fac-count">${members.length}</span></h4>
+                    <button class="mini-btn" title="세력 삭제" onclick="Store.delWorldItem('f','${f.id}', event)">${IC('trash-2')}</button>
                 </summary>
                 <div style="margin-top:10px;">
                     <details class="item-card card-faction" id="det-f-${f.id}" ontoggle="if(this.open) this.querySelectorAll('textarea').forEach(el=>UI.autoResize(el))">
-                        <summary>📝 세력 정보</summary>
+                        <summary>${IC('notebook-pen')} 세력 정보</summary>
                         <div style="margin-top:10px;">
                             <input type="text" class="input-std" id="f-n-${f.id}" value="${this.esc(f.name)}" placeholder="세력명">
                             <textarea class="area-std auto-resize" id="f-d-${f.id}" placeholder="특징" oninput="UI.autoResize(this);">${this.esc(f.desc)}</textarea>
-                            <span class="secret-label">🔒 세력 비밀</span>
+                            <span class="secret-label">${IC('lock')} 세력 비밀</span>
                             <textarea class="area-std auto-resize" id="f-s-${f.id}" oninput="UI.autoResize(this);">${this.esc(f.secret)}</textarea>
                         </div>
                     </details>
@@ -517,7 +517,7 @@ window.UI = {
         const loners = others.filter(c => !(c.factionIds || []).some(fid => validF.has(fid)));
         const lonerGroup = `
             <details class="folder-box fac-group" id="det-fg-none">
-                <summary class="folder-title"><h4 style="margin:0; color:var(--text-muted);">👤 무소속 <span class="fac-count">${loners.length}</span></h4></summary>
+                <summary class="folder-title"><h4 style="margin:0; color:var(--text-muted);">${IC('user')} 무소속 <span class="fac-count">${loners.length}</span></h4></summary>
                 <div style="margin-top:10px;">${loners.map(c => this.buildCharHTML(c, false, false, w, 'none')).join('') || empty}</div>
             </details>`;
         document.getElementById('char-other-area').innerHTML = groups + lonerGroup;
@@ -560,7 +560,7 @@ window.UI = {
         if(Store.state.roomTags.length === 0) return list.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">생성된 태그가 없습니다.</p>'; 
         list.innerHTML = Store.state.roomTags.map(t => `
             <div style="background:var(--surface); padding:12px; border-radius:8px; margin-bottom:10px; display:flex; gap:8px; justify-content:space-between; align-items:center; border:1px solid var(--border-color);">
-                <span title="${t.kind==='world'?'세계관 태그':'일반 태그'}">${t.kind==='world'?'🌌':'🏷️'}</span>
+                <span title="${t.kind==='world'?'세계관 태그':'일반 태그'}">${IC(t.kind==='world'?'globe':'tag')}</span>
                 <input type="text" class="input-std" style="margin:0; flex:1; padding:8px;" value="${this.esc(t.name)}" onchange="App.updateRoomTag('${t.id}', this.value)">
                 <button class="btn-danger" style="margin:0; width:auto; padding:8px 14px;" onclick="App.deleteRoomTag('${t.id}')">삭제</button>
             </div>`).join(''); 
@@ -569,7 +569,7 @@ window.UI = {
     updateActionBtn: function() { 
         const val = document.getElementById('msg-input').value.trim(); const btn = document.getElementById('action-btn'); 
         if(val) { btn.innerText = "전송"; btn.style.background = "var(--accent-color)"; } 
-        else { btn.innerText = "▶ 진행"; btn.style.background = "#10b981"; } 
+        else { btn.innerText = "진행"; btn.style.background = "#10b981"; } 
     },
     
     appendMessageDOM: function(m, idx) {
@@ -613,26 +613,26 @@ window.UI = {
         
         if(m.role==='ai') {
             if(isLastAi) { 
-                const rb = document.createElement('button'); rb.innerText="🔄"; rb.title="재생성"; 
+                const rb = document.createElement('button'); rb.innerHTML=IC('refresh-cw'); rb.title="재생성"; 
                 rb.onclick=()=>App.runAI(true,idx); c.append(rb); 
             }
-            // 바깥에는 재생성, 수정, 버전 넘기기만 두고 나머지(분기, 되감기, 삭제, 캐시 수치)는 ⋯ 안에 둔다
-            const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="메시지 직접 수정"; eb.onclick=()=>this.enterEdit(idx); 
+            // 바깥에는 재생성, 수정, 버전 넘기기만 두고 나머지(분기, 되감기, 삭제, 캐시 수치)는 더보기 안에 둔다
+            const eb = document.createElement('button'); eb.innerHTML=IC('pencil'); eb.title="메시지 직접 수정"; eb.onclick=()=>this.enterEdit(idx); 
             c.append(eb);
             
             if(m.variants.length>1) { 
-                const p = document.createElement('button'); p.innerText="◀"; p.title="이전 대화"; p.onclick=()=>{m.currentVariant=(m.currentVariant+m.variants.length-1)%m.variants.length; App.loadActiveRoom(true);}; 
-                const n = document.createElement('button'); n.innerText="▶"; n.title="다음 대화"; n.onclick=()=>{m.currentVariant=(m.currentVariant+1)%m.variants.length; App.loadActiveRoom(true);}; 
+                const p = document.createElement('button'); p.innerHTML=IC('chevron-left'); p.title="이전 대화"; p.onclick=()=>{m.currentVariant=(m.currentVariant+m.variants.length-1)%m.variants.length; App.loadActiveRoom(true);}; 
+                const n = document.createElement('button'); n.innerHTML=IC('chevron-right'); n.title="다음 대화"; n.onclick=()=>{m.currentVariant=(m.currentVariant+1)%m.variants.length; App.loadActiveRoom(true);}; 
                 const s = document.createElement('span'); s.innerText=`${m.currentVariant+1}/${m.variants.length}`; 
                 c.append(p, s, n); 
             }
 
-            const moreBtn = document.createElement('button'); moreBtn.innerText="⋯"; moreBtn.title="더보기";
+            const moreBtn = document.createElement('button'); moreBtn.innerHTML=IC('ellipsis'); moreBtn.title="더보기";
             const moreMenu = document.createElement('span'); moreMenu.style.display="none"; moreMenu.style.gap="4px"; moreMenu.style.alignItems="center"; moreMenu.style.flexWrap="wrap";
             
-            const bb = document.createElement('button'); bb.innerText="🔀"; bb.title="분기 생성"; bb.onclick=()=>App.branch(idx);
-            const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="⏪"; rw.title="이후 대화 지우고 되감기"; rw.onclick=()=>App.rewindRoom(idx); 
-            const db = document.createElement('button'); db.innerText="🗑️"; db.title="메시지 삭제"; db.onclick=()=>{
+            const bb = document.createElement('button'); bb.innerHTML=IC('git-branch'); bb.title="분기 생성"; bb.onclick=()=>App.branch(idx);
+            const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerHTML=IC('rewind'); rw.title="이후 대화 지우고 되감기"; rw.onclick=()=>App.rewindRoom(idx); 
+            const db = document.createElement('button'); db.innerHTML=IC('trash-2'); db.title="메시지 삭제"; db.onclick=()=>{
                 // 재생성한 버전이 여러 개면 지금 보고 있는 버전 하나만 지운다
                 if(m.variants.length > 1) {
                     if(!confirm(`지금 보고 있는 버전(${m.currentVariant+1}/${m.variants.length})만 삭제하시겠습니까?`)) return;
@@ -652,9 +652,9 @@ window.UI = {
             }
             c.append(moreBtn, moreMenu);
         } else {
-            const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="수정"; eb.onclick=()=>this.enterEdit(idx); 
-            const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="⏪"; rw.title="되감기"; rw.onclick=()=>App.rewindRoom(idx); 
-            const db = document.createElement('button'); db.innerText="🗑️"; db.title="삭제"; db.onclick=()=>{ if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); Store.forceSave(); App.loadActiveRoom(true); }; 
+            const eb = document.createElement('button'); eb.innerHTML=IC('pencil'); eb.title="수정"; eb.onclick=()=>this.enterEdit(idx); 
+            const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerHTML=IC('rewind'); rw.title="되감기"; rw.onclick=()=>App.rewindRoom(idx); 
+            const db = document.createElement('button'); db.innerHTML=IC('trash-2'); db.title="삭제"; db.onclick=()=>{ if(!confirm("삭제하시겠습니까?")) return; r.history.splice(idx,1); Store.forceSave(); App.loadActiveRoom(true); }; 
             c.append(eb, rw, db);
         }
         return c;

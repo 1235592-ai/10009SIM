@@ -112,6 +112,15 @@ body {
 
 h3 { font-size: 1rem; margin-bottom: 10px; }
 
+/* 선 아이콘: 크기는 주변 글자 크기를, 색은 주변 글자색을 따른다 */
+.ic { width: 1.15em; height: 1.15em; vertical-align: -0.2em; flex-shrink: 0; }
+h2 .ic, h3 .ic, summary .ic, .net-title .ic { margin-right: 2px; opacity: 0.85; }
+.btn-icon .ic, .header-btns .ic { width: 1.25em; height: 1.25em; }
+.btn-to-lobby .ic { margin-right: 2px; }
+.sparkle-icon .ic { width: 3rem; height: 3rem; }
+.drag-handle .ic { width: 1.1rem; height: 1.1rem; }
+.close-btn-new .ic { width: 1.5rem; height: 1.5rem; vertical-align: middle; }
+
 /* =========================================
    2. Overlay, Toast, Loader
 ========================================= */
@@ -303,7 +312,7 @@ header {
 .btn-to-lobby { background: transparent; border: 1px solid var(--border-strong); color: var(--text-main); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
 .header-names { text-align: center; font-weight: 700; flex: 1; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .header-btns { display: flex; flex-shrink: 0; }
-.header-btns button { background: transparent; border: none; color: var(--text-main); font-size: 1.2rem; margin-left: 8px; cursor: pointer; }
+.header-btns button { background: transparent; border: none; color: var(--text-sub); font-size: 1.1rem; margin-left: 4px; padding: 6px; cursor: pointer; }
 
 .sub-header {
     background: var(--subheader-bg);

@@ -49,7 +49,7 @@ window.Store = {
             
             this.state.rooms.forEach(r => { 
                 if(!r.tagIds) r.tagIds = []; 
-                // 🔥 신규 기능 하위 호환성 및 초기화 패치 (톤, 조연 수명 관리, 떡밥 회수)
+                // 신규 기능 하위 호환성 및 초기화 패치 (톤, 조연 수명 관리, 떡밥 회수)
                 if(!r.transientCharIds) r.transientCharIds = {};
                 if(typeof r.baitRecoveryNextTurn === 'undefined') r.baitRecoveryNextTurn = false;
                 if(!r.tone) r.tone = 'normal';
