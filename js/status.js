@@ -81,7 +81,6 @@ window.Status = {
                 <select class="select-std" onchange="Status.select('defId', this.value)">${defs.map(d => `<option value="${d.id}" ${d.id === def.id ? 'selected' : ''}>${UI.esc(d.title) || '새 스테이터스'}</option>`).join('')}</select>
                 <select class="select-std" onchange="Status.select('charId', this.value)">${chars.map(c => `<option value="${c.id}" ${c.id === char.id ? 'selected' : ''}>${UI.esc(c.keyword)}</option>`).join('')}</select>
             </div>
-            ${def.guide && def.guide.trim() ? `<p class="hint">${UI.esc(def.guide)}</p>` : ''}
             ${this.busy ? '<div class="typing-indicator" style="margin:8px 0;"><span></span><span></span><span></span></div>' : ''}
             <div class="md-table-wrap"><table class="md-table status-table"><thead><tr><th>항목</th><th>수치</th><th>비고</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
             <div class="status-actions">
