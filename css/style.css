@@ -371,6 +371,9 @@ header {
 .status-delta.down { color: var(--c-red); }
 .status-actions { display: flex; gap: 8px; margin-top: 8px; }
 .status-actions button { margin: 0; flex: 1; padding: 10px 6px; font-size: 0.9rem; }
+.tpl-import-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border-color); cursor: pointer; line-height: 1.5; }
+.tpl-import-row input { margin-top: 4px; }
+.tpl-import-row .hint { margin: 0; }
 .status-item-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
 .status-item-row .input-std { margin: 0; }
 .status-item-row .input-std[type="number"] { width: 5em; flex-shrink: 0; }
