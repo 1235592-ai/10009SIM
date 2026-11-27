@@ -616,8 +616,9 @@ window.UI = {
                 const rb = document.createElement('button'); rb.innerText="🔄"; rb.title="재생성"; 
                 rb.onclick=()=>App.runAI(true,idx); c.append(rb); 
             }
-            const bb = document.createElement('button'); bb.innerText="🔀"; bb.title="분기 생성"; 
-            bb.onclick=()=>App.branch(idx); c.append(bb);
+            // 바깥에는 재생성, 수정, 버전 넘기기만 두고 나머지(분기, 되감기, 삭제, 캐시 수치)는 ⋯ 안에 둔다
+            const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="메시지 직접 수정"; eb.onclick=()=>this.enterEdit(idx); 
+            c.append(eb);
             
             if(m.variants.length>1) { 
                 const p = document.createElement('button'); p.innerText="◀"; p.title="이전 대화"; p.onclick=()=>{m.currentVariant=(m.currentVariant+m.variants.length-1)%m.variants.length; App.loadActiveRoom(true);}; 
@@ -627,9 +628,9 @@ window.UI = {
             }
 
             const moreBtn = document.createElement('button'); moreBtn.innerText="⋯"; moreBtn.title="더보기";
-            const moreMenu = document.createElement('span'); moreMenu.style.display="none"; moreMenu.style.gap="4px";
+            const moreMenu = document.createElement('span'); moreMenu.style.display="none"; moreMenu.style.gap="4px"; moreMenu.style.alignItems="center"; moreMenu.style.flexWrap="wrap";
             
-            const eb = document.createElement('button'); eb.innerText="✏️"; eb.title="메시지 직접 수정"; eb.onclick=()=>this.enterEdit(idx); 
+            const bb = document.createElement('button'); bb.innerText="🔀"; bb.title="분기 생성"; bb.onclick=()=>App.branch(idx);
             const rw = document.createElement('button'); rw.className = "btn-rewind"; rw.innerText="⏪"; rw.title="이후 대화 지우고 되감기"; rw.onclick=()=>App.rewindRoom(idx); 
             const db = document.createElement('button'); db.innerText="🗑️"; db.title="메시지 삭제"; db.onclick=()=>{
                 // 재생성한 버전이 여러 개면 지금 보고 있는 버전 하나만 지운다
@@ -641,13 +642,13 @@ window.UI = {
             }; 
             
             moreBtn.onclick = () => { moreMenu.style.display = moreMenu.style.display==='none' ? 'inline-flex' : 'none'; };
-            moreMenu.append(eb, rw, db);
+            moreMenu.append(bb, rw, db);
             if(m.usage && m.usage.input) {
                 // 이 응답을 만들 때 보낸 입력량과, 그중 캐시에서 읽어 싸게 처리된 비율
                 const u = document.createElement('span'); u.className = 'usage-tag';
                 u.title = `입력 ${m.usage.input.toLocaleString()} 토큰 중 ${m.usage.cached.toLocaleString()} 토큰을 캐시에서 읽음`;
                 u.innerText = `입력 ${(m.usage.input / 1000).toFixed(1)}k · 캐시 ${Math.round(m.usage.cached / m.usage.input * 100)}%`;
-                c.append(u);
+                moreMenu.append(u);
             }
             c.append(moreBtn, moreMenu);
         } else {
